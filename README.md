@@ -10,8 +10,8 @@ Prompt 組裝、Streaming 解析全部為純 Python 實作，共約 2,700 行。
 
 ```bash
 uv sync
-uv run aorus-rag build --embed-model hashing     # 不需下載模型即可跑通
-uv run aorus-rag search "螢幕更新率是多少"         # 純檢索，零模型
+uv run aorus-rag build --embed-model hashing   # 零下載，僅供跑通管線（會印出警告）
+uv run aorus-rag search "螢幕更新率是多少"       # 純檢索，不需要生成模型
 ```
 
 ---
@@ -64,7 +64,7 @@ bash scripts/download_models.sh all      # 全部五個模型，約 5.7 GB（做
 ### 執行
 
 ```bash
-uv run aorus-rag build --embed-model e5-small        # 建語料 + 向量索引
+uv run aorus-rag build                               # 建語料 + 向量索引（預設 e5-small）
 uv run aorus-rag ask "這台的電池容量是多少？"           # 串流回答
 uv run aorus-rag ask "How many Type-C ports?" --show-context
 uv run aorus-rag eval-retrieval                      # 檢索評測（不需 LLM）
@@ -421,14 +421,40 @@ RRF    → 用「排名」而非「分數」融合，
 中文斷詞採 **char bigram 而非詞典斷詞**：不需附帶詞典、沒有產品術語的
 OOV 問題，且「更新率」與「螢幕更新率」仍能部分重疊。
 
-### 6.3 檢索後處理
+### 6.3 Embedding 必須與索引同源
+
+向量檢索有一個會**默默算出垃圾**的失效模式：用 A 模型建索引、用 B 模型查詢。
+兩者的向量活在不同的空間，cosine 相似度照樣算得出數字，只是毫無意義 ——
+沒有例外、沒有警告、結果看起來完全正常。
+
+因此 embedding 的每一項模型專屬設定都跟著模型走，而不是寫死：
+
+| 模型專屬項目 | e5-small | bge-m3 | 實作位置 |
+|---|---|---|---|
+| 非對稱前綴 | `query: ` / `passage: ` | 無 | `embed.PREFIXES`，查詢與語料分別套用 |
+| Pooling | mean | CLS | `ModelSpec.pooling` → llama.cpp `pooling_type` |
+| 向量維度 | 384 | 1024 | 建索引時實測，寫入 `index.npz` |
+| 最大長度 | 512 | 1024 | `ModelSpec.n_ctx` |
+
+`index.npz` 記錄建索引時用的模型名稱，查詢時若不一致直接拒絕執行：
+
+```
+$ uv run aorus-rag search "..." （索引是 hashing 建的，但要求 e5-small）
+error: index was built with 'hashing' but 'e5-small' was requested;
+       rebuild with `uv run aorus-rag build --embed-model e5-small`
+```
+
+`hashing` fallback 只用於零下載的管線驗證，使用時 build / search /
+eval-retrieval 都會在 stderr 印出醒目警告，避免它的數字被誤當成正式結果。
+
+### 6.4 檢索後處理
 
 - **Key 精確命中 boost**（+35%）：問題字面包含某 chunk 的鍵時直接加權。
   「螢幕更新率是多少」含有「螢幕更新率」——這比任何相似度分數都強，且成本是一次子字串比對。
 - **Doc 級多樣性**：同一規格列最多取 2 個 chunk，避免 context 是同一列的五種切法。
 - **精度優先的 tie-break**：分數相同時 `fact` > `spec_line` > `spec_row` > `feature`。
 
-### 6.4 Prompt 設計
+### 6.5 Prompt 設計
 
 四條硬性規則（`prompt.py`）：
 
@@ -437,7 +463,7 @@ OOV 問題，且「更新率」與「螢幕更新率」仍能部分重疊。
 3. 每個事實標來源編號 `[1]`
 4. 使用者用什麼語言就用什麼語言回答；中文用台灣用語
 
-### 6.5 核心取捨：top-k 與 TTFT
+### 6.6 核心取捨：top-k 與 TTFT
 
 ```
 TTFT ≈ 檢索時間 + prefill 時間
@@ -489,7 +515,7 @@ e2e_tps   n_tokens / total_s             端到端，包含 prefill
 ```
 
 分開報 decode-only 與 end-to-end 是必要的：prefill 是整段 prompt 的 GEMM、
-decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.5 那條取捨。
+decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.6 那條取捨。
 
 每題跑 3 次取中位數，第一次 warmup 不計。
 
@@ -533,7 +559,7 @@ uv run aorus-rag bench --repeats 3 --top-k-sweep 1 3 5 8 --no-rag-control
 | Qwen2.5-3B | Q4_K_M | 2.4 GB | — | — | — | — | — |
 | Qwen3-4B | Q4_K_M | 3.3 GB | — | — | — | — | — |
 
-**(b) top-k 對延遲的影響**（§6.5 的核心取捨）
+**(b) top-k 對延遲的影響**（§6.6 的核心取捨）
 
 | top-k | prompt tokens | TTFT (s) | TPS | 關鍵字正確率 |
 |---|---|---|---|---|

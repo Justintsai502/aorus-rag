@@ -94,13 +94,18 @@ class LlamaCppEmbedder:
             raise RuntimeError(
                 "llama-cpp-python is not installed. Install the inference engine with:\n"
                 '  CMAKE_ARGS="-DGGML_METAL=on" uv sync --extra llama   # macOS\n'
-                '  CMAKE_ARGS="-DGGML_CUDA=on"  uv sync --extra llama   # CUDA'
+                '  CMAKE_ARGS="-DGGML_CUDA=on"  uv sync --extra llama   # CUDA\n'
+                "Or smoke-test the pipeline with no model at all:\n"
+                "  uv run aorus-rag build --embed-model hashing"
             ) from exc
 
         path = model_path or (MODELS_DIR / spec.filename)
         if not path.exists():
             raise FileNotFoundError(
-                f"{path} not found. Fetch it with `bash scripts/download_models.sh`."
+                f"{path} not found ({spec.approx_gb:.2f} GB).\n"
+                f"  Download it:  bash scripts/download_models.sh {spec.name}\n"
+                "  Or smoke-test the pipeline with no model at all:\n"
+                "                uv run aorus-rag build --embed-model hashing"
             )
 
         pooling = {

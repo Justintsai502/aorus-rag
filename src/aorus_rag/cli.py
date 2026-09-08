@@ -53,6 +53,19 @@ def _runtime_config(args) -> RuntimeConfig:
     )
 
 
+HASHING_WARNING = (
+    "!! Using the 'hashing' fallback embedder: it captures lexical overlap only\n"
+    "!! and has NO semantic ability (it cannot match 螢幕多亮 to 'brightness').\n"
+    "!! Retrieval numbers from it are a lexical-only lower bound, not a result.\n"
+    "!! For real numbers: bash scripts/download_models.sh && "
+    "uv run aorus-rag build --embed-model e5-small"
+)
+
+
+def _warn_hashing() -> None:
+    print(HASHING_WARNING, file=sys.stderr)
+
+
 def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
     chunks = read_corpus(CORPUS_PATH)
     bundle = IndexBundle.load(INDEX_PATH)
@@ -63,6 +76,8 @@ def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
             f"rebuild with `uv run aorus-rag build --embed-model {name}`"
         )
     embedder = build_embedder(name, n_gpu_layers=0)
+    if embedder.name == "hashing":
+        _warn_hashing()
     return Retriever(chunks, bundle, embedder, mode=mode)
 
 
@@ -115,6 +130,8 @@ def cmd_build(args) -> int:
 
     t1 = time.perf_counter()
     embedder = build_embedder(args.embed_model, n_gpu_layers=args.embed_gpu_layers)
+    if embedder.name == "hashing":
+        _warn_hashing()
     bundle = build_index(chunks, embedder)
     print(
         f"index   {bundle.embeddings.shape[0]} x {bundle.dim} "
@@ -300,8 +317,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("build", help="parse, chunk, embed and index")
     sp.add_argument(
         "--embed-model",
-        default="hashing",
-        help=f"one of {sorted(EMBEDDING_MODELS)} or 'hashing' (no download)",
+        default=DEFAULT_EMBEDDING_MODEL,
+        help=(
+            f"one of {sorted(EMBEDDING_MODELS)}, or 'hashing' for a "
+            "dependency-free lexical fallback used only for smoke tests"
+        ),
     )
     sp.add_argument("--embed-gpu-layers", type=int, default=0)
     sp.add_argument("--refresh", action="store_true", help="re-fetch the pages first")
@@ -352,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args)
     except (FileNotFoundError, KeyError, ValueError, RuntimeError) as exc:
+        sys.stdout.flush()  # keep the error after whatever progress was printed
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
