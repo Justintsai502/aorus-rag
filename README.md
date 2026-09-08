@@ -246,23 +246,33 @@ llama.cpp 的優化方向與本題限制逐項對應：
 
 ### 5.1 反爬蟲
 
-規格頁位於 Akamai Bot Manager 後方，需要**兩個**條件才會放行：
+規格頁位於 Akamai Bot Manager 後方。實測六種組合，**只有一格通過**：
+
+| headers | 協定 | 結果 |
+|---|---|---|
+| Chrome 128 完整 header | HTTP/1.1 | 403 |
+| **Chrome 128 完整 header** | **HTTP/2** | **200** ✅ |
+| 誠實的 bot UA | HTTP/1.1 | 403 |
+| 誠實的 bot UA | HTTP/2 | 403 |
+| Chrome 28（HTTP/2 出現前的瀏覽器） | HTTP/1.1 | 403 |
+| 無 header | HTTP/2 | 403 |
+
+**兩個條件是 AND，缺一不可：**
 
 ```
-① 裸請求
-   → 403 Access Denied
-
-② 完整瀏覽器 header 集（UA / Accept / Accept-Language / sec-ch-ua* /
-                       Sec-Fetch-* / Upgrade-Insecure-Requests）+ HTTP/1.1
-   → 仍然 403  ← 這一步卡了很久
-
-③ 同樣的 header + HTTP/2
-   → 200 OK
+① 完整的現代瀏覽器 header
+   （UA / Accept / Accept-Language / sec-ch-ua* / Sec-Fetch-* /
+     Upgrade-Insecure-Requests）
+② HTTP/2
 ```
 
-**第二個條件是 HTTP/2。** 真實 Chrome 一定協商 h2，所以「Chrome UA 卻走
-HTTP/1.1」本身就是機器人特徵。這也是 `httpx[http2]` 出現在依賴清單、
-而 `fetch.py` 裡 `http2=True` 是必要而非優化的原因。
+值得注意的是，這不是「宣稱 Chrome 卻走 HTTP/1.1」的矛盾偵測 ——
+Chrome 28 這種 HTTP/2 出現前的 UA 走 HTTP/1.1 並不矛盾，但一樣被擋。
+兩個條件各自獨立生效。
+
+這就是 `httpx[http2]` 出現在依賴清單、而 `fetch.py` 裡 `http2=True`
+是必要條件而非效能優化的原因。（附帶一提：`httpx` 預設走 HTTP/1.1，
+所以這個問題會在「用 curl 驗證成功之後、改寫成 Python」時才浮現。）
 
 頁面是 **server-side rendered**，所以不需要 Playwright 這類 headless browser。
 `fetch.py` 帶完整 header，抓下的 HTML 存入 `data/raw/` 並 **commit 進 repo**，

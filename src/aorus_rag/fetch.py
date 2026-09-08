@@ -5,9 +5,11 @@ serves the page:
 
 1. A complete set of browser headers (UA, Accept, Accept-Language, sec-ch-ua*,
    Sec-Fetch-*). A bare request gets "403 Access Denied".
-2. **HTTP/2.** A request carrying a Chrome User-Agent over HTTP/1.1 is still
-   refused -- real Chrome always negotiates h2, so the mismatch is itself a
-   bot signal. This is why ``httpx[http2]`` is a dependency and why
+2. **HTTP/2.** The same headers over HTTP/1.1 are still refused. Measured
+   across six combinations, only "full browser headers AND h2" is served;
+   the two conditions are independent (a pre-HTTP/2-era browser UA over
+   HTTP/1.1 is also refused, so this is not mismatch detection). httpx
+   defaults to HTTP/1.1, which is why ``httpx[http2]`` is a dependency and
    ``http2=True`` below is load-bearing rather than an optimisation.
 
 No headless browser and no JavaScript execution is required: the spec table is
