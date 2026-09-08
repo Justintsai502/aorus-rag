@@ -1,25 +1,25 @@
 {
   "spec_zh": {
     "url": "https://www.gigabyte.com/tw/Laptop/AORUS-MASTER-16-AM6H/sp",
-    "fetched_at": "2026-09-08T10:50:19+00:00",
+    "fetched_at": "2026-09-08T12:36:46+00:00",
     "bytes": 649375,
     "status": 200
   },
   "spec_en": {
     "url": "https://www.gigabyte.com/Laptop/AORUS-MASTER-16-AM6H/sp",
-    "fetched_at": "2026-09-08T10:50:19+00:00",
+    "fetched_at": "2026-09-08T12:36:46+00:00",
     "bytes": 643291,
     "status": 200
   },
   "feature_zh": {
     "url": "https://www.gigabyte.com/tw/Laptop/AORUS-MASTER-16-AM6H",
-    "fetched_at": "2026-09-08T10:50:19+00:00",
+    "fetched_at": "2026-09-08T12:36:46+00:00",
     "bytes": 819165,
     "status": 200
   },
   "feature_en": {
     "url": "https://www.gigabyte.com/Laptop/AORUS-MASTER-16-AM6H",
-    "fetched_at": "2026-09-08T10:50:20+00:00",
+    "fetched_at": "2026-09-08T12:36:46+00:00",
     "bytes": 807234,
     "status": 200
   }

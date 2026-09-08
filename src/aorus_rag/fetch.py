@@ -54,7 +54,7 @@ def fetch_all(force: bool = False, timeout: float = 30.0) -> dict[str, Path]:
         headers=BROWSER_HEADERS,
         timeout=timeout,
         follow_redirects=True,
-        http2=True,  # required: HTTP/1.1 + Chrome UA is refused (see module docstring)
+        http2=True,  # required, not an optimisation: HTTP/1.1 is refused (see docstring)
     ) as client:
         for key, url in SOURCES.items():
             path = _raw_path(key)
