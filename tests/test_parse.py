@@ -78,3 +78,53 @@ def test_feature_page_excludes_site_navigation():
     text = " ".join(p for b in blocks for p in b.paragraphs)
     assert "WINDFORCE" in text
     assert "主機板" not in text  # global nav menu label
+
+
+# --------------------------------------------------------------------------
+# Contamination guards
+#
+# BZH / BYH / BXH are SKUs of the AM6H (their URLs 302 to this page), differing
+# only in GPU. The desktop comparison widget carries all three, values-only, in
+# `div.spec-item-list` blocks. Merging them would put three mutually
+# contradictory answers behind one question, so these guards get direct tests
+# rather than relying on the happy path staying happy.
+# --------------------------------------------------------------------------
+
+CONTAMINANT_GPUS = ("5080", "5070")
+
+
+def test_corpus_mentions_exactly_one_gpu(tables):
+    """The most direct guard: the comparison widget's GPU values name no model,
+    so the SIBLING_MARKERS check alone would not catch a parser regression."""
+    zh, _ = tables
+    blob = "\n".join(i.value for i in zh)
+    assert "5090" in blob
+    for gpu in CONTAMINANT_GPUS:
+        assert gpu not in blob, f"RTX {gpu} leaked in from the comparison widget"
+
+
+def test_comparison_widget_is_present_but_excluded():
+    """Guards the guard: if the widget ever disappears from the page, this test
+    fails and tells us the exclusion logic is no longer being exercised."""
+    html = fetch.load_cached("spec_zh")
+    assert html.count('<div class="spec-item-list"') == 51  # 17 rows x 3 SKUs
+    assert html.count('<ul class="spec-item-list"') == 17  # AM6H itself
+    assert "5080" in html and "5070" in html  # the contaminants are really there
+
+
+@pytest.mark.parametrize(
+    "label,mutate",
+    [
+        ("extra row", lambda xs: xs + [xs[0]]),
+        ("empty value", lambda xs: [parse.SpecItem(0, xs[0].key, [], [])] + xs[1:]),
+        ("missing key", lambda xs: [parse.SpecItem(0, "", ["x"], [])] + xs[1:]),
+        (
+            "sku marker",
+            lambda xs: [parse.SpecItem(0, xs[0].key, ["AORUS MASTER 16 BXH"], [])] + xs[1:],
+        ),
+    ],
+)
+def test_validation_rejects_contaminated_tables(tables, label, mutate):
+    zh, _ = tables
+    with pytest.raises(ValueError):
+        parse.validate_spec_items(mutate(list(zh)), label)
