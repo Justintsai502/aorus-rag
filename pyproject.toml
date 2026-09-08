@@ -1,0 +1,38 @@
+[project]
+name = "aorus-rag"
+version = "0.1.0"
+description = "Hand-rolled RAG over the GIGABYTE AORUS MASTER 16 AM6H spec sheet, built for a 4 GB VRAM budget."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Justin" }]
+
+# Deliberately minimal. No LangChain / LlamaIndex / FAISS / Chroma /
+# sentence-transformers / torch. See README "No-Framework Ledger".
+dependencies = [
+    "numpy>=1.26",   # vector math only -- the index itself is hand-written
+    "httpx[http2]>=0.27",  # HTTP/2 is required by the origin's bot protection
+]
+
+[project.optional-dependencies]
+# The inference engine. Split out so `uv sync` works on a machine with no
+# compiler, and so CPU / Metal / CUDA builds can be selected explicitly.
+llama = ["llama-cpp-python>=0.3.2"]
+plot = ["matplotlib>=3.8"]
+
+[project.scripts]
+aorus-rag = "aorus_rag.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

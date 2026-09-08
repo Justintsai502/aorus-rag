@@ -1,0 +1,1067 @@
+{
+  "embed_model": "hashing",
+  "modes": {
+    "dense": {
+      "mode": "dense",
+      "n_questions": 31,
+      "recall": {
+        "@1": 0.7419,
+        "@3": 0.8065,
+        "@5": 0.9032
+      },
+      "mrr": 0.786,
+      "latency_ms_median": 0.059,
+      "per_question": [
+        {
+          "id": "zh01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.battery",
+            "spec.battery",
+            "fact.battery",
+            "feature.zh.root",
+            "fact.storage"
+          ]
+        },
+        {
+          "id": "zh02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.display"
+          ]
+        },
+        {
+          "id": "zh03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.cpu",
+            "fact.cpu",
+            "feature.zh.root",
+            "feature.zh.root",
+            "spec.cpu"
+          ]
+        },
+        {
+          "id": "zh05",
+          "first_gold_rank": 2,
+          "retrieved": [
+            "spec.display",
+            "spec.display",
+            "spec.video_graphics",
+            "spec.video_graphics",
+            "fact.io"
+          ]
+        },
+        {
+          "id": "zh06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "fact.memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.adapter",
+            "fact.adapter",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.io"
+          ]
+        },
+        {
+          "id": "zh08",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.weight",
+            "spec.weight",
+            "fact.color",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.keyboard",
+            "spec.keyboard_type",
+            "feature.zh.root",
+            "fact.keyboard",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "en01",
+          "first_gold_rank": null,
+          "retrieved": [
+            "spec.weight",
+            "spec.dimensions_w_x_d_x_h",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.storage"
+          ]
+        },
+        {
+          "id": "en02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.gpu",
+            "spec.video_graphics",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.video_graphics"
+          ]
+        },
+        {
+          "id": "en03",
+          "first_gold_rank": 4,
+          "retrieved": [
+            "feature.en.root",
+            "feature.en.root",
+            "spec.weight",
+            "spec.dimensions_w_x_d_x_h",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "en04",
+          "first_gold_rank": 3,
+          "retrieved": [
+            "feature.en.root",
+            "feature.en.root",
+            "spec.weight",
+            "spec.video_graphics",
+            "spec.dimensions_w_x_d_x_h"
+          ]
+        },
+        {
+          "id": "en05",
+          "first_gold_rank": 3,
+          "retrieved": [
+            "feature.en.root",
+            "feature.en.root",
+            "spec.weight",
+            "fact.display",
+            "spec.dimensions_w_x_d_x_h"
+          ]
+        },
+        {
+          "id": "en06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "feature.zh.root",
+            "feature.zh.root",
+            "spec.adapter",
+            "fact.adapter"
+          ]
+        },
+        {
+          "id": "en07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.zh.root",
+            "spec.storage",
+            "feature.en.section-nv-dlss",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en08",
+          "first_gold_rank": 2,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "fact.wireless",
+            "spec.communications",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "en09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.storage",
+            "spec.storage",
+            "feature.en.root",
+            "fact.storage",
+            "spec.weight"
+          ]
+        },
+        {
+          "id": "en10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.dimensions_w_x_d_x_h",
+            "spec.weight",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.storage"
+          ]
+        },
+        {
+          "id": "mx01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.battery",
+            "fact.battery",
+            "feature.en.root",
+            "fact.battery",
+            "spec.weight"
+          ]
+        },
+        {
+          "id": "mx02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "mx03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.en.root",
+            "spec.weight",
+            "spec.communications",
+            "fact.weight"
+          ]
+        },
+        {
+          "id": "mx04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "mx05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs01",
+          "first_gold_rank": null,
+          "retrieved": [
+            "feature.zh.root",
+            "fact.display",
+            "fact.display",
+            "feature.zh.root",
+            "feature.en.section-nv"
+          ]
+        },
+        {
+          "id": "rs02",
+          "first_gold_rank": null,
+          "retrieved": [
+            "fact.display",
+            "spec.battery",
+            "fact.display",
+            "fact.battery",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "rs03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "feature.en.root",
+            "spec.weight",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "rs04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.storage",
+            "fact.storage",
+            "spec.storage",
+            "spec.storage",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "rs06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.section-nv",
+            "feature.zh.root"
+          ]
+        }
+      ]
+    },
+    "bm25": {
+      "mode": "bm25",
+      "n_questions": 31,
+      "recall": {
+        "@1": 0.9032,
+        "@3": 0.9355,
+        "@5": 1.0
+      },
+      "mrr": 0.9269,
+      "latency_ms_median": 0.138,
+      "per_question": [
+        {
+          "id": "zh01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.battery",
+            "spec.battery",
+            "fact.battery",
+            "fact.storage",
+            "fact.memory"
+          ]
+        },
+        {
+          "id": "zh02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "feature.zh.root",
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.section-nv-dlss"
+          ]
+        },
+        {
+          "id": "zh03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.cpu",
+            "fact.cpu",
+            "feature.zh.root",
+            "spec.cpu",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh05",
+          "first_gold_rank": 2,
+          "retrieved": [
+            "spec.display",
+            "spec.display",
+            "spec.video_graphics",
+            "fact.gpu",
+            "spec.video_graphics"
+          ]
+        },
+        {
+          "id": "zh06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.memory",
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.adapter",
+            "fact.adapter",
+            "feature.zh.root",
+            "spec.display",
+            "spec.display"
+          ]
+        },
+        {
+          "id": "zh08",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.weight",
+            "spec.weight",
+            "fact.color",
+            "spec.weight",
+            "fact.dimensions"
+          ]
+        },
+        {
+          "id": "zh09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.keyboard",
+            "spec.keyboard_type",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.keyboard"
+          ]
+        },
+        {
+          "id": "en01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.battery",
+            "spec.weight",
+            "feature.en.root",
+            "spec.dimensions_w_x_d_x_h",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.gpu",
+            "spec.video_graphics",
+            "feature.en.root",
+            "spec.video_graphics",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "en03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.gpu",
+            "spec.video_graphics",
+            "spec.video_graphics",
+            "feature.en.root",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.video_graphics",
+            "spec.video_graphics",
+            "fact.gpu",
+            "feature.en.root",
+            "feature.en.section-nv-maxq"
+          ]
+        },
+        {
+          "id": "en05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.audio",
+            "spec.display"
+          ]
+        },
+        {
+          "id": "en06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "feature.zh.root",
+            "feature.en.root",
+            "fact.io",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.storage",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "en08",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "spec.communications",
+            "spec.communications",
+            "feature.en.root",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "en09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.storage",
+            "spec.storage",
+            "fact.storage",
+            "feature.en.section-nv-maxq",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.dimensions_w_x_d_x_h",
+            "spec.weight",
+            "fact.dimensions",
+            "feature.en.root",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "mx01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.battery",
+            "fact.battery",
+            "fact.battery",
+            "feature.zh.section-nv-maxq",
+            "spec.storage"
+          ]
+        },
+        {
+          "id": "mx02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "spec.io_port",
+            "feature.en.root",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "mx03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.en.root",
+            "feature.zh.root",
+            "spec.communications",
+            "spec.communications"
+          ]
+        },
+        {
+          "id": "mx04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.root",
+            "feature.zh.section-nv-dlss"
+          ]
+        },
+        {
+          "id": "mx05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs01",
+          "first_gold_rank": 4,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.io"
+          ]
+        },
+        {
+          "id": "rs02",
+          "first_gold_rank": 4,
+          "retrieved": [
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.display",
+            "fact.io"
+          ]
+        },
+        {
+          "id": "rs03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "feature.en.root",
+            "fact.io",
+            "spec.io_port",
+            "spec.weight"
+          ]
+        },
+        {
+          "id": "rs04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.storage",
+            "fact.storage",
+            "spec.storage",
+            "spec.storage",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "rs06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        }
+      ]
+    },
+    "hybrid": {
+      "mode": "hybrid",
+      "n_questions": 31,
+      "recall": {
+        "@1": 0.871,
+        "@3": 0.9355,
+        "@5": 0.9355
+      },
+      "mrr": 0.8978,
+      "latency_ms_median": 0.194,
+      "per_question": [
+        {
+          "id": "zh01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.battery",
+            "spec.battery",
+            "fact.battery",
+            "fact.storage",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "feature.zh.root",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "zh04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.cpu",
+            "fact.cpu",
+            "feature.zh.root",
+            "feature.zh.root",
+            "spec.cpu"
+          ]
+        },
+        {
+          "id": "zh05",
+          "first_gold_rank": 2,
+          "retrieved": [
+            "spec.display",
+            "spec.display",
+            "spec.video_graphics",
+            "spec.video_graphics",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.adapter",
+            "fact.adapter",
+            "spec.display",
+            "feature.zh.root",
+            "spec.display"
+          ]
+        },
+        {
+          "id": "zh08",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.weight",
+            "spec.weight",
+            "spec.weight",
+            "fact.color",
+            "feature.zh.section-nv-dlss"
+          ]
+        },
+        {
+          "id": "zh09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "zh10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.keyboard",
+            "spec.keyboard_type",
+            "feature.zh.root",
+            "fact.keyboard",
+            "feature.zh.section-nv-dlss"
+          ]
+        },
+        {
+          "id": "en01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.battery",
+            "spec.weight",
+            "spec.dimensions_w_x_d_x_h",
+            "feature.en.root",
+            "spec.storage"
+          ]
+        },
+        {
+          "id": "en02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.gpu",
+            "spec.video_graphics",
+            "feature.en.root",
+            "spec.video_graphics",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "en03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.gpu",
+            "feature.en.root",
+            "feature.en.root",
+            "spec.video_graphics",
+            "spec.weight"
+          ]
+        },
+        {
+          "id": "en04",
+          "first_gold_rank": 1,
+          "retrieved": [
+            "feature.en.root",
+            "spec.video_graphics",
+            "feature.en.root",
+            "feature.en.section-nv-maxq",
+            "spec.weight"
+          ]
+        },
+        {
+          "id": "en05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.display",
+            "spec.display",
+            "feature.en.root",
+            "feature.en.root",
+            "fact.display"
+          ]
+        },
+        {
+          "id": "en06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "feature.zh.root",
+            "feature.en.root",
+            "fact.io",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en07",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.zh.root",
+            "spec.storage",
+            "feature.en.root",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en08",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "spec.communications",
+            "spec.communications",
+            "spec.io_port",
+            "fact.io"
+          ]
+        },
+        {
+          "id": "en09",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.storage",
+            "spec.storage",
+            "fact.storage",
+            "feature.en.section-nv-maxq",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "en10",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.dimensions_w_x_d_x_h",
+            "spec.weight",
+            "feature.en.root",
+            "feature.en.root",
+            "fact.dimensions"
+          ]
+        },
+        {
+          "id": "mx01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.battery",
+            "fact.battery",
+            "fact.battery",
+            "feature.zh.section-nv-maxq",
+            "spec.storage"
+          ]
+        },
+        {
+          "id": "mx02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "spec.io_port",
+            "feature.en.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "mx03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.wireless",
+            "feature.en.root",
+            "spec.communications",
+            "spec.communications",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "mx04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.section-nv-dlss",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "mx05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs01",
+          "first_gold_rank": null,
+          "retrieved": [
+            "fact.display",
+            "feature.zh.root",
+            "fact.display",
+            "feature.zh.root",
+            "feature.en.section-nv"
+          ]
+        },
+        {
+          "id": "rs02",
+          "first_gold_rank": null,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.root",
+            "feature.zh.root",
+            "spec.battery"
+          ]
+        },
+        {
+          "id": "rs03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.io",
+            "fact.io",
+            "spec.weight",
+            "feature.en.root",
+            "spec.io_port"
+          ]
+        },
+        {
+          "id": "rs04",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "rs05",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.storage",
+            "fact.storage",
+            "spec.storage",
+            "spec.storage",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "rs06",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "fact.display",
+            "fact.display",
+            "feature.zh.section-nv",
+            "feature.zh.root",
+            "feature.zh.section-nv-dlss"
+          ]
+        }
+      ]
+    }
+  }
+}

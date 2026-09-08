@@ -1,0 +1,18 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Models are multi-GB, fetched by scripts/download_models.sh
+models/
+*.gguf
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# macOS
+.DS_Store

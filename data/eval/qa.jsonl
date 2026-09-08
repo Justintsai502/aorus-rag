@@ -1,0 +1,36 @@
+{"id": "zh01", "question": "這台筆電的電池容量是多少？", "lang": "zh", "type": "fact", "gold_docs": ["fact.battery", "spec.battery"], "must_include": ["99Wh"], "must_refuse": false}
+{"id": "zh02", "question": "螢幕的更新率是多少？", "lang": "zh", "type": "fact", "gold_docs": ["fact.display", "spec.display"], "must_include": ["240"], "must_refuse": false}
+{"id": "zh03", "question": "螢幕解析度是多少？", "lang": "zh", "type": "fact", "gold_docs": ["fact.display", "spec.display"], "must_include": ["2560", "1600"], "must_refuse": false}
+{"id": "zh04", "question": "用的是什麼處理器？", "lang": "zh", "type": "fact", "gold_docs": ["fact.cpu", "spec.cpu"], "must_include": ["275HX"], "must_refuse": false}
+{"id": "zh05", "question": "顯示卡是哪一張？", "lang": "zh", "type": "fact", "gold_docs": ["fact.gpu", "spec.video_graphics"], "must_include": ["5090"], "must_refuse": false}
+{"id": "zh06", "question": "記憶體最大可以擴充到多少？", "lang": "zh", "type": "fact", "gold_docs": ["fact.memory", "spec.system_memory"], "must_include": ["64GB"], "must_refuse": false}
+{"id": "zh07", "question": "變壓器是幾瓦？", "lang": "zh", "type": "fact", "gold_docs": ["fact.adapter", "spec.adapter"], "must_include": ["330W"], "must_refuse": false}
+{"id": "zh08", "question": "這台的機身重量是多少？", "lang": "zh", "type": "fact", "gold_docs": ["fact.weight", "spec.weight"], "must_include": ["2.5"], "must_refuse": false}
+{"id": "zh09", "question": "記憶體有幾個 SO-DIMM 插槽？", "lang": "zh", "type": "fact", "gold_docs": ["spec.system_memory", "fact.memory"], "must_include": ["2"], "must_refuse": false}
+{"id": "zh10", "question": "鍵盤背光是什麼規格？", "lang": "zh", "type": "fact", "gold_docs": ["fact.keyboard", "spec.keyboard_type"], "must_include": ["RGB"], "must_refuse": false}
+{"id": "en01", "question": "What is the battery capacity of this laptop?", "lang": "en", "type": "fact", "gold_docs": ["fact.battery", "spec.battery"], "must_include": ["99Wh"], "must_refuse": false}
+{"id": "en02", "question": "Which GPU does this laptop use?", "lang": "en", "type": "fact", "gold_docs": ["fact.gpu", "spec.video_graphics"], "must_include": ["5090"], "must_refuse": false}
+{"id": "en03", "question": "How much video memory does the GPU have?", "lang": "en", "type": "fact", "gold_docs": ["fact.gpu", "spec.video_graphics"], "must_include": ["24GB"], "must_refuse": false}
+{"id": "en04", "question": "What is the maximum graphics power of the GPU?", "lang": "en", "type": "fact", "gold_docs": ["fact.gpu", "spec.video_graphics"], "must_include": ["175W"], "must_refuse": false}
+{"id": "en05", "question": "What panel technology does the display use?", "lang": "en", "type": "fact", "gold_docs": ["fact.display", "spec.display"], "must_include": ["OLED"], "must_refuse": false}
+{"id": "en06", "question": "How many USB Type-C ports does it have?", "lang": "en", "type": "fact", "gold_docs": ["fact.io", "spec.io_port"], "must_include": ["2"], "must_refuse": false}
+{"id": "en07", "question": "Which Wi-Fi standard is supported?", "lang": "en", "type": "fact", "gold_docs": ["fact.wireless", "spec.communications"], "must_include": ["7"], "must_refuse": false}
+{"id": "en08", "question": "What Bluetooth version does it support?", "lang": "en", "type": "fact", "gold_docs": ["fact.wireless", "spec.communications"], "must_include": ["5.4"], "must_refuse": false}
+{"id": "en09", "question": "What is the maximum storage capacity?", "lang": "en", "type": "fact", "gold_docs": ["fact.storage", "spec.storage"], "must_include": ["4TB"], "must_refuse": false}
+{"id": "en10", "question": "What are the dimensions of this laptop?", "lang": "en", "type": "fact", "gold_docs": ["fact.dimensions", "spec.dimensions_w_x_d_x_h"], "must_include": ["357", "254"], "must_refuse": false}
+{"id": "mx01", "question": "What's the 電池 capacity in Wh?", "lang": "mixed", "type": "fact", "gold_docs": ["fact.battery", "spec.battery"], "must_include": ["99Wh"], "must_refuse": false}
+{"id": "mx02", "question": "這台的 Thunderbolt 5 port 在哪一側？", "lang": "mixed", "type": "fact", "gold_docs": ["fact.io", "spec.io_port"], "must_include": ["Left", "左"], "must_refuse": false}
+{"id": "mx03", "question": "Does it support Wi-Fi 7 嗎？", "lang": "mixed", "type": "fact", "gold_docs": ["fact.wireless", "spec.communications"], "must_include": ["7"], "must_refuse": false}
+{"id": "mx04", "question": "螢幕的 refresh rate 是多少 Hz?", "lang": "mixed", "type": "fact", "gold_docs": ["fact.display", "spec.display"], "must_include": ["240"], "must_refuse": false}
+{"id": "mx05", "question": "How many 記憶體 slots does this machine have?", "lang": "mixed", "type": "fact", "gold_docs": ["spec.system_memory", "fact.memory"], "must_include": ["2"], "must_refuse": false}
+{"id": "ng01", "question": "這台筆電支援 5G 行動網路嗎？", "lang": "zh", "type": "negative", "gold_docs": [], "must_include": [], "must_refuse": true}
+{"id": "ng02", "question": "What is the MSRP of this laptop in USD?", "lang": "en", "type": "negative", "gold_docs": [], "must_include": [], "must_refuse": true}
+{"id": "ng03", "question": "這台的保固期限是幾年？", "lang": "zh", "type": "negative", "gold_docs": [], "must_include": [], "must_refuse": true}
+{"id": "ng04", "question": "Does this laptop have a fingerprint reader?", "lang": "en", "type": "negative", "gold_docs": [], "must_include": [], "must_refuse": true}
+{"id": "ng05", "question": "電池充飽可以用幾個小時？", "lang": "zh", "type": "negative", "gold_docs": [], "must_include": [], "must_refuse": true}
+{"id": "rs01", "question": "我想外接兩台 4K 螢幕，這台有哪些影像輸出接孔可以用？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.io_port", "fact.io"], "must_include": ["HDMI"], "must_refuse": false}
+{"id": "rs02", "question": "出門只想帶一條線，同時充電又外接螢幕，該插哪個孔？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.io_port", "fact.io"], "must_include": ["Type-C"], "must_refuse": false}
+{"id": "rs03", "question": "Which side should I plug the Ethernet cable into?", "lang": "en", "type": "reasoning", "gold_docs": ["fact.io", "spec.io_port"], "must_include": ["Left", "左"], "must_refuse": false}
+{"id": "rs04", "question": "這台可以自己加裝記憶體和第二顆 SSD 嗎？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.system_memory", "spec.storage", "fact.storage", "fact.memory"], "must_include": ["SO-DIMM", "M.2"], "must_refuse": false}
+{"id": "rs05", "question": "Is the faster M.2 slot PCIe Gen4 or Gen5?", "lang": "en", "type": "reasoning", "gold_docs": ["spec.storage", "fact.storage"], "must_include": ["Gen5"], "must_refuse": false}
+{"id": "rs06", "question": "螢幕支援 HDR 嗎？是哪一個等級？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.display", "fact.display"], "must_include": ["HDR"], "must_refuse": false}

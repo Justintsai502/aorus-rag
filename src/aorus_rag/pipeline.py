@@ -1,0 +1,164 @@
+"""End-to-end orchestration: build the corpus, build the index, answer a query.
+
+Deliberately split into two phases so the two models are never resident at the
+same time:
+
+    build   fetch -> parse -> normalise -> chunk -> embed -> index.npz
+            (embedding model only; peak footprint ~0.3 GB)
+    ask     load index.npz -> retrieve -> generate
+            (generation model on GPU, embedding model on CPU)
+
+That split is why the VRAM ledger in the README only has to account for the
+generation model.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+
+from . import chunk as chunking
+from . import fetch, normalize, parse
+from .chunk import Chunk
+from .config import CORPUS_PATH, INDEX_PATH, RuntimeConfig
+from .embed import Embedder, build_embedder
+from .index import IndexBundle
+from .llm import BaseLLM, StreamStats
+from .prompt import build_no_rag_messages, build_prompt, detect_language, to_messages
+from .retrieve import Hit, Retriever, embed_corpus
+
+# --------------------------------------------------------------------------
+# Build phase
+# --------------------------------------------------------------------------
+
+
+def build_corpus(offline: bool = True, force_fetch: bool = False) -> list[Chunk]:
+    """Parse the cached pages into the chunk corpus and write corpus.jsonl."""
+    if not offline or force_fetch:
+        fetch.fetch_all(force=force_fetch)
+
+    zh_items = parse.parse_spec_table(fetch.load_cached("spec_zh"))
+    en_items = parse.parse_spec_table(fetch.load_cached("spec_en"))
+    parse.validate_spec_items(zh_items, "spec_zh")
+    parse.validate_spec_items(en_items, "spec_en")
+
+    facts = normalize.extract_facts(zh_items, en_items)
+
+    chunks: list[Chunk] = []
+    chunks += chunking.chunk_facts(facts)
+    chunks += chunking.chunk_spec_rows(zh_items, en_items)
+    for lang, key in (("zh", "feature_zh"), ("en", "feature_en")):
+        try:
+            blocks = parse.parse_feature_page(fetch.load_cached(key))
+        except FileNotFoundError:
+            continue
+        chunks += chunking.chunk_features(blocks, lang)
+
+    chunks = chunking.dedupe(chunks)
+    chunking.write_corpus(chunks, CORPUS_PATH)
+    return chunks
+
+
+def build_index(chunks: list[Chunk], embedder: Embedder) -> IndexBundle:
+    bundle = embed_corpus(chunks, embedder)
+    bundle.save(INDEX_PATH)
+    return bundle
+
+
+# --------------------------------------------------------------------------
+# Query phase
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class AnswerResult:
+    question: str
+    lang: str
+    answer: str
+    hits: list[Hit] = field(default_factory=list)
+    stats: StreamStats = field(default_factory=StreamStats)
+    retrieval_s: float = 0.0
+    context_chars: int = 0
+
+    @property
+    def ttft_s(self) -> float:
+        """End-to-end first-token latency, retrieval included."""
+        return self.retrieval_s + self.stats.ttft_s
+
+    def to_dict(self) -> dict:
+        return {
+            "question": self.question,
+            "lang": self.lang,
+            "answer": self.answer,
+            "retrieval_s": self.retrieval_s,
+            "context_chars": self.context_chars,
+            "ttft_e2e_s": self.ttft_s,
+            "hits": [
+                {"chunk_id": h.chunk.chunk_id, "kind": h.chunk.kind, "score": h.score}
+                for h in self.hits
+            ],
+            "stats": self.stats.to_dict(),
+        }
+
+
+class RagPipeline:
+    """Retriever + LLM. Keeps no state between questions."""
+
+    def __init__(
+        self, retriever: Retriever, llm: BaseLLM, cfg: RuntimeConfig | None = None
+    ) -> None:
+        self.retriever = retriever
+        self.llm = llm
+        self.cfg = cfg or RuntimeConfig()
+
+    def retrieve(self, question: str, top_k: int | None = None) -> tuple[list[Hit], float]:
+        t0 = time.perf_counter()
+        hits = self.retriever.search(question, top_k=top_k or self.cfg.top_k)
+        return hits, time.perf_counter() - t0
+
+    def answer(
+        self,
+        question: str,
+        top_k: int | None = None,
+        max_tokens: int | None = None,
+        on_token=None,
+        use_rag: bool = True,
+    ) -> AnswerResult:
+        lang = detect_language(question)
+
+        if not use_rag:
+            messages = build_no_rag_messages(question, lang)
+            text, stats = self.llm.generate(
+                messages,
+                max_tokens=max_tokens or self.cfg.max_tokens,
+                temperature=self.cfg.temperature,
+                on_token=on_token,
+            )
+            return AnswerResult(question=question, lang=lang, answer=text, stats=stats)
+
+        hits, retrieval_s = self.retrieve(question, top_k=top_k)
+        prompt = build_prompt(question, hits, lang=lang)
+        text, stats = self.llm.generate(
+            to_messages(prompt),
+            max_tokens=max_tokens or self.cfg.max_tokens,
+            temperature=self.cfg.temperature,
+            on_token=on_token,
+        )
+        return AnswerResult(
+            question=question,
+            lang=lang,
+            answer=text,
+            hits=prompt.used_hits,
+            stats=stats,
+            retrieval_s=retrieval_s,
+            context_chars=prompt.context_chars,
+        )
+
+
+def load_pipeline(cfg: RuntimeConfig, llm: BaseLLM, mode: str = "hybrid") -> RagPipeline:
+    """Load corpus + index from disk and wire everything together."""
+    chunks = chunking.read_corpus(CORPUS_PATH)
+    bundle = IndexBundle.load(INDEX_PATH)
+    embedder = build_embedder(bundle.embed_model, n_gpu_layers=cfg.embed_n_gpu_layers)
+    retriever = Retriever(chunks, bundle, embedder, mode=mode)
+    return RagPipeline(retriever, llm, cfg)
