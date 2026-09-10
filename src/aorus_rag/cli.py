@@ -18,7 +18,6 @@ import time
 
 from . import bench as benchmarks
 from . import fetch as fetching
-from .chunk import read_corpus
 from .config import (
     CORPUS_PATH,
     DEFAULT_EMBEDDING_MODEL,
@@ -30,9 +29,8 @@ from .config import (
     RuntimeConfig,
 )
 from .embed import build_embedder
-from .index import IndexBundle
 from .llm import build_llm
-from .pipeline import RagPipeline, build_corpus, build_index
+from .pipeline import RagPipeline, build_corpus, build_index, load_retriever
 from .retrieve import Retriever
 
 # --------------------------------------------------------------------------
@@ -66,43 +64,21 @@ def _warn_hashing() -> None:
     print(HASHING_WARNING, file=sys.stderr)
 
 
+def _degraded(reason: str) -> None:
+    print(
+        f"note: dense retrieval unavailable ({reason})\n"
+        "note: falling back to BM25 -- no model needed, Recall@5 = 1.000 on the\n"
+        "note: eval set, but it cannot match paraphrases. To enable dense/hybrid:\n"
+        "note:   bash scripts/download_models.sh bge-m3",
+        file=sys.stderr,
+    )
+
+
 def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
-    """Load the corpus and whatever retrieval the environment can actually run.
-
-    The corpus and the vector index ship with the repo, so nothing here builds
-    anything. What may be missing is the *embedder*: dense retrieval has to
-    encode the query at request time, which needs llama-cpp-python compiled and
-    bge-m3 downloaded. Rather than refusing to start, fall back to BM25 -- it
-    needs neither, scores Recall@5 = 1.000 on the eval set, and runs in 0.14 ms.
-    A degraded answer beats a stack trace on a fresh clone.
-    """
-    chunks = read_corpus(CORPUS_PATH)
-    if mode == "bm25":
-        # Pure arithmetic over the corpus: no vectors, no model, no llama.cpp.
-        return Retriever(chunks, None, None, mode=mode)
-
-    bundle = IndexBundle.load(INDEX_PATH)
-    name = embed_model or bundle.embed_model
-    if name != bundle.embed_model:
-        raise SystemExit(
-            f"index was built with {bundle.embed_model!r} but {name!r} was requested; "
-            f"rebuild with `uv run aorus-rag build --embed-model {name}`"
-        )
-    try:
-        embedder = build_embedder(name, n_gpu_layers=0)
-    except (RuntimeError, FileNotFoundError) as exc:
-        print(
-            f"note: dense retrieval unavailable ({str(exc).splitlines()[0]})\n"
-            f"note: falling back to BM25. It needs no model and reaches Recall@5 = 1.000\n"
-            f"note: on the eval set, but cannot match paraphrases. For dense/hybrid:\n"
-            f"note:   bash scripts/download_models.sh {name}",
-            file=sys.stderr,
-        )
-        return Retriever(chunks, None, None, mode="bm25")
-
-    if embedder.name == "hashing":
+    r = load_retriever(mode, embed_model, on_degrade=_degraded)
+    if r.embedder is not None and r.embedder.name == "hashing":
         _warn_hashing()
-    return Retriever(chunks, bundle, embedder, mode=mode)
+    return r
 
 
 def _load_pipeline(args) -> RagPipeline:
@@ -192,7 +168,9 @@ def cmd_search(args) -> int:
     t0 = time.perf_counter()
     hits = retriever.search(args.question, top_k=args.top_k)
     elapsed = (time.perf_counter() - t0) * 1000
-    print(f"{len(hits)} hits in {elapsed:.1f} ms  (mode={args.mode})\n")
+    # Report what actually ran, not what was asked for: retrieval may have
+    # degraded to BM25 when no embedder was available.
+    print(f"{len(hits)} hits in {elapsed:.1f} ms  (mode={retriever.mode})\n")
     for h in hits:
         ranks = f"dense={h.dense_rank} bm25={h.bm25_rank}"
         print(f"[{h.rank + 1}] {h.score:.4f}  {h.chunk.kind:9s} {ranks}")

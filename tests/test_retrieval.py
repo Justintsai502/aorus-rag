@@ -138,3 +138,24 @@ def test_bm25_mode_needs_neither_index_nor_embedder():
     chunks = _toy_corpus()
     r = Retriever(chunks, None, None, mode="bm25")
     assert r.search("99Wh", top_k=1)[0].chunk.chunk_id == "c1"
+
+
+def test_rescue_keeps_a_single_retriever_top_hit():
+    """RRF scores consensus, so a chunk only one arm finds can be dropped.
+
+    Measured case: the row holding "VESA DisplayHDR True Black 500" was dense's
+    #1 and absent from BM25's list, so fusion pushed it to rank 8 and the answer
+    became a refusal. The rescue must put it back inside top-k.
+    """
+    chunks = [Chunk(f"c{i}", f"d{i}", "spec_line", f"顯示器 / Display: 項目 {i}") for i in range(8)]
+    chunks.append(
+        Chunk("gold", "dgold", "spec_row", "顯示器 / Display: VESA DisplayHDR True Black 500")
+    )
+    emb = HashingEmbedder()
+    r = Retriever(chunks, embed_corpus(chunks, emb), emb, mode="hybrid")
+    # Force the situation: gold is dense's top hit, unseen by BM25.
+    dense = [(8, 0.9)] + [(i, 0.5) for i in range(4)]
+    sparse = [(0, 9.0), (1, 8.0), (2, 7.0)]
+    selected = r._rescue_top_hits([(0, 0.03), (1, 0.02), (2, 0.01)], [dense, sparse], top_k=3)
+    assert 8 in [i for i, _ in selected]
+    assert len(selected) <= 3

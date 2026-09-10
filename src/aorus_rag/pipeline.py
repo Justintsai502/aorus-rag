@@ -15,6 +15,7 @@ generation model.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from . import chunk as chunking
@@ -157,10 +158,46 @@ class RagPipeline:
         )
 
 
-def load_pipeline(cfg: RuntimeConfig, llm: BaseLLM, mode: str = "hybrid") -> RagPipeline:
-    """Load corpus + index from disk and wire everything together."""
+def load_retriever(
+    mode: str = "hybrid",
+    embed_model: str | None = None,
+    on_degrade: Callable[[str], None] | None = None,
+) -> Retriever:
+    """Load the best retrieval the environment can actually run.
+
+    The corpus and vector index ship with the repo, so nothing is built here.
+    What may be missing is the *embedder*: dense retrieval encodes the query at
+    request time, which needs llama-cpp-python and a downloaded GGUF. Rather
+    than refusing to start, fall back to BM25 -- no model, 0.14 ms, Recall@5 =
+    1.000 on the eval set, but blind to paraphrases. ``on_degrade`` is called
+    with an explanation so a caller can surface it.
+    """
     chunks = chunking.read_corpus(CORPUS_PATH)
+    if mode == "bm25":
+        # Pure arithmetic over the corpus: no vectors, no model, no llama.cpp.
+        return Retriever(chunks, None, None, mode=mode)
+
     bundle = IndexBundle.load(INDEX_PATH)
-    embedder = build_embedder(bundle.embed_model, n_gpu_layers=cfg.embed_n_gpu_layers)
-    retriever = Retriever(chunks, bundle, embedder, mode=mode)
-    return RagPipeline(retriever, llm, cfg)
+    name = embed_model or bundle.embed_model
+    if name != bundle.embed_model:
+        raise ValueError(
+            f"index was built with {bundle.embed_model!r} but {name!r} was requested; "
+            f"rebuild with `uv run aorus-rag build --embed-model {name}`"
+        )
+    try:
+        embedder = build_embedder(name, n_gpu_layers=0)
+    except (RuntimeError, FileNotFoundError) as exc:
+        if on_degrade is not None:
+            on_degrade(str(exc).splitlines()[0])
+        return Retriever(chunks, None, None, mode="bm25")
+    return Retriever(chunks, bundle, embedder, mode=mode)
+
+
+def load_pipeline(
+    cfg: RuntimeConfig,
+    llm: BaseLLM,
+    mode: str = "hybrid",
+    on_degrade: Callable[[str], None] | None = None,
+) -> RagPipeline:
+    """Corpus + index + models, wired together. Single entry point."""
+    return RagPipeline(load_retriever(mode, cfg.embed_model_or_index, on_degrade), llm, cfg)

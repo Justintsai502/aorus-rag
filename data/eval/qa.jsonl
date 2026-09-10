@@ -34,3 +34,7 @@
 {"id": "rs04", "question": "這台可以自己加裝記憶體和第二顆 SSD 嗎？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.system_memory", "spec.storage", "fact.storage", "fact.memory"], "must_include": [["SO-DIMM", "記憶體", "插槽"], ["M.2", "SSD"]], "must_refuse": false}
 {"id": "rs05", "question": "Is the faster M.2 slot PCIe Gen4 or Gen5?", "lang": "en", "type": "reasoning", "gold_docs": ["spec.storage", "fact.storage"], "must_include": ["Gen5"], "must_refuse": false}
 {"id": "rs06", "question": "螢幕支援 HDR 嗎？是哪一個等級？", "lang": "zh", "type": "reasoning", "gold_docs": ["spec.display", "fact.display"], "must_include": ["HDR"], "must_refuse": false}
+{"id": "sk01", "question": "AORUS MASTER 16 有幾種型號？差在哪裡？", "lang": "zh", "type": "sku", "gold_docs": ["sku"], "must_include": [["3", "三"], ["顯示晶片", "顯示卡", "GPU"]], "must_refuse": false}
+{"id": "sk02", "question": "哪一個型號搭載 RTX 5080？", "lang": "zh", "type": "sku", "gold_docs": ["sku.byh", "sku"], "must_include": ["BYH"], "must_refuse": false}
+{"id": "sk03", "question": "Which model has the RTX 5070 Ti?", "lang": "en", "type": "sku", "gold_docs": ["sku.bxh", "sku"], "must_include": ["BXH"], "must_refuse": false}
+{"id": "sk04", "question": "BZH 的顯示記憶體是多少？", "lang": "zh", "type": "sku", "gold_docs": ["sku.bzh", "sku"], "must_include": ["24GB"], "must_refuse": false}

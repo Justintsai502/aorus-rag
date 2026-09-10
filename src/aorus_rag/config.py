@@ -165,3 +165,12 @@ class RuntimeConfig:
     seed: int = 1234
     vram_budget_mb: int = 4096
     extra: dict = field(default_factory=dict)
+
+    @property
+    def embed_model_or_index(self) -> str | None:
+        """None means "whatever the index was built with" -- the safe default.
+
+        Only an explicit override should ever contradict the index, and that is
+        rejected rather than silently producing meaningless cosine scores.
+        """
+        return None

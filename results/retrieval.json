@@ -3,14 +3,14 @@
   "modes": {
     "dense": {
       "mode": "dense",
-      "n_questions": 31,
+      "n_questions": 35,
       "recall": {
-        "@1": 0.9677,
-        "@3": 1.0,
+        "@1": 0.9143,
+        "@3": 0.9714,
         "@5": 1.0
       },
-      "mrr": 0.9839,
-      "latency_ms_median": 17.386,
+      "mrr": 0.95,
+      "latency_ms_median": 17.231,
       "per_question": [
         {
           "id": "zh01",
@@ -352,19 +352,63 @@
             "feature.zh.root",
             "spec.display"
           ]
+        },
+        {
+          "id": "sk01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku",
+            "feature.zh.root",
+            "feature.zh.root",
+            "feature.en.root",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "sk02",
+          "first_gold_rank": 1,
+          "retrieved": [
+            "feature.zh.root",
+            "sku.byh",
+            "spec.video_graphics",
+            "feature.en.root",
+            "fact.gpu"
+          ]
+        },
+        {
+          "id": "sk03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku.bxh",
+            "spec.video_graphics",
+            "fact.gpu",
+            "feature.en.root",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "sk04",
+          "first_gold_rank": 3,
+          "retrieved": [
+            "fact.gpu",
+            "spec.system_memory",
+            "fact.memory",
+            "sku",
+            "sku.bzh"
+          ]
         }
       ]
     },
     "bm25": {
       "mode": "bm25",
-      "n_questions": 31,
+      "n_questions": 35,
       "recall": {
-        "@1": 0.9032,
-        "@3": 0.9355,
-        "@5": 1.0
+        "@1": 0.8857,
+        "@3": 0.9143,
+        "@5": 0.9714
       },
-      "mrr": 0.9269,
-      "latency_ms_median": 0.144,
+      "mrr": 0.9067,
+      "latency_ms_median": 0.165,
       "per_question": [
         {
           "id": "zh01",
@@ -706,19 +750,63 @@
             "feature.zh.root",
             "feature.zh.root"
           ]
+        },
+        {
+          "id": "sk01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku",
+            "fact.memory",
+            "fact.cpu",
+            "fact.gpu",
+            "feature.zh.root"
+          ]
+        },
+        {
+          "id": "sk02",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku",
+            "fact.gpu",
+            "fact.memory",
+            "fact.cpu",
+            "sku.byh"
+          ]
+        },
+        {
+          "id": "sk03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku.bxh",
+            "fact.gpu",
+            "feature.en.root",
+            "fact.cpu",
+            "feature.en.section-nv-dlss"
+          ]
+        },
+        {
+          "id": "sk04",
+          "first_gold_rank": null,
+          "retrieved": [
+            "fact.gpu",
+            "spec.system_memory",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory"
+          ]
         }
       ]
     },
     "hybrid": {
       "mode": "hybrid",
-      "n_questions": 31,
+      "n_questions": 35,
       "recall": {
-        "@1": 0.9677,
-        "@3": 1.0,
+        "@1": 0.9143,
+        "@3": 0.9714,
         "@5": 1.0
       },
-      "mrr": 0.9839,
-      "latency_ms_median": 18.68,
+      "mrr": 0.9438,
+      "latency_ms_median": 16.973,
       "per_question": [
         {
           "id": "zh01",
@@ -838,7 +926,7 @@
             "feature.en.root",
             "spec.weight",
             "spec.dimensions_w_x_d_x_h",
-            "feature.en.root"
+            "spec.video_graphics"
           ]
         },
         {
@@ -904,7 +992,7 @@
             "feature.en.root",
             "feature.zh.root",
             "feature.en.root",
-            "feature.zh.root"
+            "spec.communications"
           ]
         },
         {
@@ -992,7 +1080,7 @@
             "spec.system_memory",
             "fact.memory",
             "fact.memory",
-            "spec.storage"
+            "fact.memory"
           ]
         },
         {
@@ -1025,7 +1113,7 @@
             "fact.io",
             "spec.io_port",
             "spec.io_port",
-            "feature.en.root"
+            "fact.io"
           ]
         },
         {
@@ -1057,8 +1145,52 @@
             "fact.display",
             "fact.display",
             "feature.zh.root",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root"
+            "spec.display",
+            "fact.display"
+          ]
+        },
+        {
+          "id": "sk01",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku",
+            "feature.zh.root",
+            "feature.zh.root",
+            "fact.memory",
+            "fact.cpu"
+          ]
+        },
+        {
+          "id": "sk02",
+          "first_gold_rank": 2,
+          "retrieved": [
+            "feature.zh.root",
+            "fact.gpu",
+            "sku.byh",
+            "feature.zh.root",
+            "sku"
+          ]
+        },
+        {
+          "id": "sk03",
+          "first_gold_rank": 0,
+          "retrieved": [
+            "sku.bxh",
+            "fact.gpu",
+            "feature.en.root",
+            "feature.en.section-nv-dlss",
+            "feature.en.root"
+          ]
+        },
+        {
+          "id": "sk04",
+          "first_gold_rank": 4,
+          "retrieved": [
+            "fact.gpu",
+            "spec.system_memory",
+            "fact.memory",
+            "fact.memory",
+            "sku.bzh"
           ]
         }
       ]
