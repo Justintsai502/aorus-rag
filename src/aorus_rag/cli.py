@@ -68,6 +68,11 @@ def _warn_hashing() -> None:
 
 def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
     chunks = read_corpus(CORPUS_PATH)
+    if mode == "bm25":
+        # BM25 is pure arithmetic over the corpus: no vectors, no model, no
+        # llama.cpp. Loading an embedder here would make the one path that
+        # needs nothing depend on a 0.63 GB download.
+        return Retriever(chunks, None, None, mode=mode)
     bundle = IndexBundle.load(INDEX_PATH)
     name = embed_model or bundle.embed_model
     if name != bundle.embed_model:

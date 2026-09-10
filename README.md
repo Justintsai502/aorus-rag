@@ -10,11 +10,10 @@ Prompt 組裝、Streaming 解析全部為純 Python 實作，共約 2,700 行。
 
 ```bash
 uv sync
-uv run aorus-rag search "螢幕更新率是多少"    # 立刻可用，不需要 build、不需要任何模型
+uv run aorus-rag search "螢幕更新率是多少" --mode bm25   # 零模型、零下載，clone 完立刻可跑
 ```
 
-**語料與向量索引已建好並 commit 進 repo**（`data/corpus.jsonl` + `data/index.npz`），
-所以 clone 下來就能直接查詢。`build` 只有在你想重新抓網頁或換 embedding 模型時才需要。
+**語料與向量索引已建好並 commit 進 repo**，所以**永遠不需要跑 `build`**。
 
 **實測結果**（MacBook Pro M2 8GB、Metal、Qwen3-1.7B Q4_K_M + bge-m3、top-5）：
 
@@ -75,11 +74,24 @@ bash scripts/download_models.sh all      # 全部五個模型，約 6.3 GB（做
 ### 執行
 
 **不需要 build。** `data/corpus.jsonl`（240 chunks）與 `data/index.npz`
-（240 × 1024，bge-m3 建立）都已 commit 進 repo，clone 下來即可使用：
+（240 × 1024，bge-m3 建立）都已 commit 進 repo。
+
+但要注意**索引現成不等於零依賴** —— dense 檢索仍要把「問題」即時轉成向量，
+所以需要 embedding 模型。三條路徑的實際需求：
+
+| 指令 | 需要 llama-cpp-python | 需要下載模型 |
+|---|---|---|
+| `search --mode bm25` | ❌ | ❌ **完全不用** |
+| `search`（預設 hybrid） | ✅ | bge-m3（0.63 GB） |
+| `ask` | ✅ | bge-m3 + 生成模型 |
 
 ```bash
-uv run aorus-rag search "Thunderbolt 5 在哪一側"     # 純檢索，零模型
-uv run aorus-rag ask "這台的電池容量是多少？"          # 需要生成模型
+# clone 完立刻可跑，零下載
+uv sync && uv run aorus-rag search "Thunderbolt 5 在哪一側" --mode bm25
+
+# 完整功能
+bash scripts/download_models.sh
+uv run aorus-rag ask "這台的電池容量是多少？"
 ```
 
 只有這些情況需要重跑 `build`：重新抓網頁（`--refresh`）、換 embedding 模型、

@@ -129,3 +129,12 @@ def test_prompt_trims_context_to_budget():
     built = build_prompt("電池多大", hits, max_context_chars=30)
     assert built.context_chars <= 30
     assert len(built.used_hits) < len(hits)
+
+
+def test_bm25_mode_needs_neither_index_nor_embedder():
+    """The zero-dependency path must stay zero-dependency: passing no bundle and
+    no embedder has to work, or `search --mode bm25` silently starts requiring a
+    model download."""
+    chunks = _toy_corpus()
+    r = Retriever(chunks, None, None, mode="bm25")
+    assert r.search("99Wh", top_k=1)[0].chunk.chunk_id == "c1"
