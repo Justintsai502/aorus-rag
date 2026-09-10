@@ -9,11 +9,14 @@ Prompt 組裝、Streaming 解析全部為純 Python 實作，共約 2,700 行。
 推論引擎為 **llama.cpp**，環境由 **uv** 管理。
 
 ```bash
+git clone https://github.com/Justintsai502/aorus-rag && cd aorus-rag
 uv sync
-uv run aorus-rag search "螢幕更新率是多少" --mode bm25   # 零模型、零下載，clone 完立刻可跑
+uv run aorus-rag search "螢幕更新率是多少"    # 立刻可跑
 ```
 
-**語料與向量索引已建好並 commit 進 repo**，所以**永遠不需要跑 `build`**。
+**語料與向量索引已建好並 commit 進 repo，不需要跑 `build`。**
+沒有下載模型時會自動退回 BM25 檢索（仍達 Recall@5 = 1.000）；
+下載模型後同一個指令自動升級為 hybrid。
 
 **實測結果**（MacBook Pro M2 8GB、Metal、Qwen3-1.7B Q4_K_M + bge-m3、top-5）：
 
@@ -76,33 +79,48 @@ bash scripts/download_models.sh all      # 全部五個模型，約 6.3 GB（做
 **不需要 build。** `data/corpus.jsonl`（240 chunks）與 `data/index.npz`
 （240 × 1024，bge-m3 建立）都已 commit 進 repo。
 
-但要注意**索引現成不等於零依賴** —— dense 檢索仍要把「問題」即時轉成向量，
-所以需要 embedding 模型。三條路徑的實際需求：
+### 三個層級，同一組指令
 
-| 指令 | 需要 llama-cpp-python | 需要下載模型 |
-|---|---|---|
-| `search --mode bm25` | ❌ | ❌ **完全不用** |
-| `search`（預設 hybrid） | ✅ | bge-m3（0.63 GB） |
-| `ask` | ✅ | bge-m3 + 生成模型 |
+系統會依照環境**自動選擇能跑的最好路徑**，不會因為缺模型就拒絕啟動：
+
+| 你手上有什麼 | 檢索 | 生成 | 指令 |
+|---|---|---|---|
+| **只有 repo**（零下載） | BM25 自動接手 | ✗ | `uv run aorus-rag search "..."` |
+| + bge-m3（0.63 GB） | hybrid（dense + BM25） | ✗ | 同上，自動升級 |
+| + 生成模型（1.11 GB） | hybrid | ✓ | `uv run aorus-rag ask "..."` |
+
+零下載時的實際輸出：
+
+```
+$ uv run aorus-rag search "Thunderbolt 5 在哪一側"
+note: dense retrieval unavailable (llama-cpp-python is not installed...)
+note: falling back to BM25. It needs no model and reaches Recall@5 = 1.000
+note: on the eval set, but cannot match paraphrases. For dense/hybrid:
+note:   bash scripts/download_models.sh bge-m3
+
+3 hits in 0.2 ms  (mode=bm25)
+[1] Thunderbolt 5 位置 / Thunderbolt 5 location: 左側 / Left side
+```
+
+> **設計取捨**：BM25 是有效能力較弱的降級（Recall@1 0.903 vs dense 0.968，
+> 且完全無法處理換句話說的問題，見 §7.4）。但**在全新環境給出一個較弱的答案，
+> 比丟一個 stack trace 好** —— 而且升級路徑只是下載一個模型，指令完全不用改。
+
+### 完整功能
 
 ```bash
-# clone 完立刻可跑，零下載
-uv sync && uv run aorus-rag search "Thunderbolt 5 在哪一側" --mode bm25
-
-# 完整功能
-bash scripts/download_models.sh
+bash scripts/download_models.sh          # qwen3-1.7b + bge-m3，約 1.74 GB
+CMAKE_ARGS="-DGGML_METAL=on" uv sync --extra llama   # macOS（見上）
 uv run aorus-rag ask "這台的電池容量是多少？"
 ```
 
-只有這些情況需要重跑 `build`：重新抓網頁（`--refresh`）、換 embedding 模型、
-或修改了 chunking 邏輯。
+### 重新建立索引（選用）
 
+只有這些情況才需要：重新抓網頁、換 embedding 模型、或改了 chunking 邏輯。
 
 ```bash
-uv run aorus-rag ask "這台的電池容量是多少？"           # 串流回答（不需要 build）
-uv run aorus-rag ask "How many Type-C ports?" --show-context
-uv run aorus-rag eval-retrieval                      # 檢索評測（不需 LLM）
-uv run aorus-rag bench --repeats 3 --top-k-sweep 1 3 5 8 --no-rag-control
+uv run aorus-rag build --refresh                    # 重抓網頁後重建
+uv run aorus-rag build --embed-model hashing        # 零下載，僅供驗證管線
 ```
 
 ### 在 Kaggle / Colab 上重現

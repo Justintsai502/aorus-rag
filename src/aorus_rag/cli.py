@@ -67,12 +67,20 @@ def _warn_hashing() -> None:
 
 
 def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
+    """Load the corpus and whatever retrieval the environment can actually run.
+
+    The corpus and the vector index ship with the repo, so nothing here builds
+    anything. What may be missing is the *embedder*: dense retrieval has to
+    encode the query at request time, which needs llama-cpp-python compiled and
+    bge-m3 downloaded. Rather than refusing to start, fall back to BM25 -- it
+    needs neither, scores Recall@5 = 1.000 on the eval set, and runs in 0.14 ms.
+    A degraded answer beats a stack trace on a fresh clone.
+    """
     chunks = read_corpus(CORPUS_PATH)
     if mode == "bm25":
-        # BM25 is pure arithmetic over the corpus: no vectors, no model, no
-        # llama.cpp. Loading an embedder here would make the one path that
-        # needs nothing depend on a 0.63 GB download.
+        # Pure arithmetic over the corpus: no vectors, no model, no llama.cpp.
         return Retriever(chunks, None, None, mode=mode)
+
     bundle = IndexBundle.load(INDEX_PATH)
     name = embed_model or bundle.embed_model
     if name != bundle.embed_model:
@@ -80,7 +88,18 @@ def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
             f"index was built with {bundle.embed_model!r} but {name!r} was requested; "
             f"rebuild with `uv run aorus-rag build --embed-model {name}`"
         )
-    embedder = build_embedder(name, n_gpu_layers=0)
+    try:
+        embedder = build_embedder(name, n_gpu_layers=0)
+    except (RuntimeError, FileNotFoundError) as exc:
+        print(
+            f"note: dense retrieval unavailable ({str(exc).splitlines()[0]})\n"
+            f"note: falling back to BM25. It needs no model and reaches Recall@5 = 1.000\n"
+            f"note: on the eval set, but cannot match paraphrases. For dense/hybrid:\n"
+            f"note:   bash scripts/download_models.sh {name}",
+            file=sys.stderr,
+        )
+        return Retriever(chunks, None, None, mode="bm25")
+
     if embedder.name == "hashing":
         _warn_hashing()
     return Retriever(chunks, bundle, embedder, mode=mode)
