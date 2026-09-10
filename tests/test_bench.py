@@ -49,3 +49,18 @@ def test_strip_thinking_removes_reasoning_block():
     assert strip_thinking("<think>\n\n</think>\n\n電池容量為 99Wh。") == "電池容量為 99Wh。"
     assert strip_thinking("<think>用户问的是…</think>\n答案是 240Hz [1]。") == "答案是 240Hz [1]。"
     assert strip_thinking("沒有 think 的答案 [1]。") == "沒有 think 的答案 [1]。"
+
+
+def test_strip_thinking_handles_switch_echo_and_orphan_close():
+    """Observed in 2 of 108 measured answers: the model echoes the soft switch
+    and sometimes reopens the monologue, leaving an unmatched closing tag."""
+    from aorus_rag.llm import strip_thinking
+
+    assert (
+        strip_thinking("提供的規格資料中沒有這項資訊。 /no_output")
+        == "提供的規格資料中沒有這項資訊。"
+    )
+    assert (
+        strip_thinking("沒有這項資訊。 /no_think\n\n</think>\n\n提供的規格資料中沒有這項資訊。")
+        == "提供的規格資料中沒有這項資訊。"
+    )

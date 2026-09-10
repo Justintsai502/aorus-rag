@@ -51,12 +51,28 @@ KV_TYPES = {"f16": 1, "q8_0": 8, "q5_1": 7, "q4_0": 2}
 # not count towards the answer, and the first token *after* it is the one a user
 # actually waits for.
 THINK_BLOCK = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+# An unmatched closing tag shows up when the model re-opens its monologue after
+# the switch; anything before it is still monologue.
+THINK_ORPHAN = re.compile(r"^.*?</think>\s*", re.DOTALL)
+# Qwen3's soft switches occasionally get echoed back into the output.
+CONTROL_ECHO = re.compile(r"\s*/no_(?:think|output)\b\s*")
 THINK_CLOSE = "</think>"
 
 
 def strip_thinking(text: str) -> str:
-    """Remove the reasoning block, leaving the answer the user sees."""
-    return THINK_BLOCK.sub("", text).strip()
+    """Return only what a reader should see.
+
+    Removes the reasoning block, an orphaned ``</think>`` (the model sometimes
+    reopens the monologue after the soft switch), and any echoed ``/no_think``
+    or ``/no_output`` control token. Measured on 108 answers, the echo appeared
+    in 2 of them -- rare, but it lands in the user-visible text, so it is
+    cleaned rather than tolerated.
+    """
+    out = THINK_BLOCK.sub("", text)
+    if THINK_CLOSE in out:
+        out = THINK_ORPHAN.sub("", out)
+    out = CONTROL_ECHO.sub(" ", out)
+    return out.strip()
 
 
 @dataclass

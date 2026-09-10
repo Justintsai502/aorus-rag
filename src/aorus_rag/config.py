@@ -64,11 +64,14 @@ BROWSER_HEADERS: dict[str, str] = {
 # Models
 #
 # VRAM ledger (see README). Defaults target the 4 GB budget with headroom:
-#   generation  Qwen2.5-3B-Instruct Q4_K_M   ~1.93 GB
-#   KV cache    n_ctx=4096, type_k/v=q8_0    ~0.15 GB
-#   embedding   multilingual-e5-small f16    ~0.24 GB  (CPU by default)
+#   generation  Qwen3-1.7B Q4_K_M            ~1.11 GB
+#   KV cache    n_ctx=4096, type_k/v=q8_0    ~0.23 GB
 #   overhead    compute buffers              ~0.30 GB
-#   ------------------------------------------------  ~2.6 GB
+#   ------------------------------------------------  ~1.64 GB VRAM
+#   embedding   bge-m3 Q8_0                  ~0.63 GB  (CPU, outside the budget)
+#
+# The default was Qwen2.5-3B until measured: at top_k=5 the 1.7B matches it on
+# every quality metric while running 1.7x faster on 0.67 GB less. See README 7.4.
 # --------------------------------------------------------------------------
 
 
@@ -139,7 +142,7 @@ EMBEDDING_MODELS: dict[str, ModelSpec] = {
     ),
 }
 
-DEFAULT_GENERATION_MODEL = os.environ.get("AORUS_RAG_GEN_MODEL", "qwen2.5-3b")
+DEFAULT_GENERATION_MODEL = os.environ.get("AORUS_RAG_GEN_MODEL", "qwen3-1.7b")
 DEFAULT_EMBEDDING_MODEL = os.environ.get("AORUS_RAG_EMBED_MODEL", "bge-m3")
 
 
@@ -156,7 +159,7 @@ class RuntimeConfig:
     # VRAM ledger only has to account for the generation model.
     n_gpu_layers: int = -1
     embed_n_gpu_layers: int = 0
-    top_k: int = 4
+    top_k: int = 5
     max_tokens: int = 384
     temperature: float = 0.2
     seed: int = 1234

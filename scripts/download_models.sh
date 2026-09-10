@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fetch the GGUF weights into ./models/.
 #
-#   bash scripts/download_models.sh              # default pair (~2.56 GB)
+#   bash scripts/download_models.sh              # default pair (~1.74 GB)
 #   bash scripts/download_models.sh all          # every model (~5.7 GB)
 #   bash scripts/download_models.sh qwen3-4b     # one model by name
 #
@@ -20,7 +20,7 @@ REPO[qwen3-4b]="unsloth/Qwen3-4B-Instruct-2507-GGUF";  FILE[qwen3-4b]="Qwen3-4B-
 REPO[e5-small]="cstr/multilingual-e5-small-GGUF";      FILE[e5-small]="multilingual-e5-small-q8_0.gguf";   SIZE[e5-small]="0.13 GB"
 REPO[bge-m3]="lm-kit/bge-m3-gguf";                     FILE[bge-m3]="bge-m3-Q8_0.gguf";                   SIZE[bge-m3]="0.63 GB"
 
-DEFAULT=(qwen2.5-3b bge-m3)
+DEFAULT=(qwen3-1.7b bge-m3)
 ALL=(qwen2.5-3b qwen3-1.7b qwen3-4b e5-small bge-m3)
 
 case "${1:-default}" in
