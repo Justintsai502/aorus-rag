@@ -197,7 +197,28 @@ Answer:  99Wh [1]
 本專案不引用他人結論，`bench` 指令支援直接量測 Q4_K_M / Q5_K_M / Q8_0 對照
 （見 [§7](#7-評測方法與結果)）。
 
-### 3.4 為什麼是 llama.cpp 而不是 vLLM
+### 3.4 兩種 llama.cpp 使用方式
+
+題目允許「llama.cpp（Python binding / Server）」，兩條路徑都實作了：
+
+| 後端 | 呼叫方式 | 用途 |
+|---|---|---|
+| **`--backend in-process`**（預設） | `llama-cpp-python` 直接載入 GGUF | TTFT 最低，無 HTTP 往返、無框架 overhead。**README 所有評測數據都出自這條路徑** |
+| `--backend server` | HTTP + SSE 打 `llama-server` 的 `/v1/chat/completions` | 展示可部署形態 |
+
+啟動 server（需額外依賴）：
+
+```bash
+uv sync --extra server
+uv run python -m llama_cpp.server --model models/Qwen2.5-3B-Instruct-Q4_K_M.gguf \
+    --n_gpu_layers -1 --n_ctx 4096 --port 8080
+uv run aorus-rag ask "電池多大？" --backend server
+```
+
+> 誠實標註：**server 路徑僅提供程式碼，未納入實測數據。** 量測 TTFT 時多一層
+> HTTP 與 SSE 解析會混入非模型的延遲，這正是預設走 in-process 的原因。
+
+### 3.5 為什麼是 llama.cpp 而不是 vLLM
 
 vLLM 的核心創新 —— **PagedAttention**（KV cache 分頁）與
 **continuous batching**（token 級排程）—— 都是為了解決**多使用者調度**問題：

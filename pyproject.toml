@@ -18,6 +18,9 @@ dependencies = [
 # The inference engine. Split out so `uv sync` works on a machine with no
 # compiler, and so CPU / Metal / CUDA builds can be selected explicitly.
 llama = ["llama-cpp-python>=0.3.2"]
+# Only needed for `--backend server`, which talks OpenAI-style SSE to a
+# locally running llama-server. The default in-process backend needs none of it.
+server = ["llama-cpp-python[server]>=0.3.2"]
 plot = ["matplotlib>=3.8"]
 
 [project.scripts]

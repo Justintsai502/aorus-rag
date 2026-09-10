@@ -4,8 +4,19 @@ Two backends:
 
 ``LlamaCppLLM``     in-process via llama-cpp-python. Lowest TTFT -- no HTTP
                     round trip, no serialisation -- and the default.
-``LlamaServerLLM``  talks OpenAI-style SSE to a running ``llama-server``.
-                    Same measurements, deployment-shaped.
+``LlamaServerLLM``  talks OpenAI-style SSE to an already-running
+                    ``llama-server``. Same measurements, deployment-shaped.
+                    Start one with::
+
+                        uv sync --extra server
+                        uv run python -m llama_cpp.server \
+                            --model models/Qwen2.5-3B-Instruct-Q4_K_M.gguf \
+                            --n_gpu_layers -1 --n_ctx 4096 --port 8080
+
+                    then ``uv run aorus-rag ask "..." --backend server``.
+                    The benchmark numbers in the README come from the
+                    in-process backend; the server path is provided for
+                    deployment shape and is not part of the measured results.
 
 Timing definitions used throughout this project (stated explicitly because
 "TPS" means at least three different things in the wild):
