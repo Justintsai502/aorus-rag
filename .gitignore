@@ -16,3 +16,6 @@ build/
 
 # macOS
 .DS_Store
+
+# 不屬於本專案的目錄（意外出現在此路徑）
+authored_scripts/
