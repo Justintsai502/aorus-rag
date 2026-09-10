@@ -36,3 +36,16 @@ def test_number_grounding_flags_invented_numbers():
 
     grounded, total = number_grounding("電池是 99Wh，約 26000mAh", context)
     assert total == 2 and grounded == 1  # 26000 is invented
+
+
+def test_strip_thinking_removes_reasoning_block():
+    """Qwen3 emits <think>...</think> even with thinking disabled (empty block).
+
+    Scoring the monologue would credit keywords the user never sees and flag
+    numbers the model was only considering as hallucinations.
+    """
+    from aorus_rag.llm import strip_thinking
+
+    assert strip_thinking("<think>\n\n</think>\n\n電池容量為 99Wh。") == "電池容量為 99Wh。"
+    assert strip_thinking("<think>用户问的是…</think>\n答案是 240Hz [1]。") == "答案是 240Hz [1]。"
+    assert strip_thinking("沒有 think 的答案 [1]。") == "沒有 think 的答案 [1]。"

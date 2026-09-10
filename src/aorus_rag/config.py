@@ -83,6 +83,12 @@ class ModelSpec:
     # Embedding models only: pooling strategy llama.cpp should use.
     pooling: str | None = None
     n_ctx: int = 4096
+    # Qwen3 is a hybrid reasoning model with thinking mode ON by default. Left
+    # alone it emits a <think> monologue -- in Simplified Chinese, at that --
+    # before every answer, which inflates token counts, delays the first
+    # *useful* token, and makes any metric computed over the raw output
+    # meaningless. "/no_think" is Qwen3's documented soft switch.
+    thinking_switch: str | None = None
 
 
 # Repos, filenames and sizes below were verified against the HuggingFace API
@@ -99,12 +105,14 @@ GENERATION_MODELS: dict[str, ModelSpec] = {
         repo="unsloth/Qwen3-1.7B-GGUF",
         filename="Qwen3-1.7B-Q4_K_M.gguf",
         approx_gb=1.11,
+        thinking_switch="/no_think",
     ),
     "qwen3-4b": ModelSpec(
         name="qwen3-4b",
         repo="unsloth/Qwen3-4B-Instruct-2507-GGUF",
         filename="Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
         approx_gb=2.50,
+        thinking_switch="/no_think",
     ),
 }
 

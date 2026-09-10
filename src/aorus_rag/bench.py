@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import QA_PATH
+from .llm import strip_thinking
 from .pipeline import RagPipeline
 from .retrieve import Retriever
 
@@ -188,27 +189,36 @@ def evaluate_generation(
             context = render_context(result.hits)
 
         ttft = statistics.median(r.ttft_s for r in runs)
+        ttft_answer = statistics.median(r.retrieval_s + r.stats.ttft_answer_s for r in runs)
+        thinking = statistics.median(r.stats.thinking_tokens for r in runs)
         tps = statistics.median(r.stats.tps for r in runs)
         e2e = statistics.median(r.stats.e2e_tps for r in runs)
         retrieval_ms = statistics.median(r.retrieval_s * 1000 for r in runs)
         prompt_tokens = runs[-1].stats.prompt_tokens
 
-        grounded, total_numbers = number_grounding(answer, context)
+        # Reasoning models emit a <think> monologue; scoring it would credit
+        # the model for keywords that never reach the user, and would count
+        # numbers it was only musing about as hallucinations.
+        visible = strip_thinking(answer)
+        grounded, total_numbers = number_grounding(visible, context)
         rows.append(
             {
                 "id": q.id,
                 "type": q.type,
                 "lang": q.lang,
                 "question": q.question,
-                "answer": answer,
+                "answer": visible,
+                "raw_answer": answer if visible != answer else None,
                 "ttft_s": round(ttft, 4),
+                "ttft_answer_s": round(ttft_answer, 4),
+                "thinking_tokens": int(thinking),
                 "tps": round(tps, 2),
                 "e2e_tps": round(e2e, 2),
                 "retrieval_ms": round(retrieval_ms, 2),
                 "prompt_tokens": prompt_tokens,
                 "context_chars": runs[-1].context_chars,
-                "keyword_ok": keyword_hit(answer, q.must_include),
-                "refused": is_refusal(answer),
+                "keyword_ok": keyword_hit(visible, q.must_include),
+                "refused": is_refusal(visible),
                 "numbers_grounded": grounded,
                 "numbers_total": total_numbers,
             }
@@ -241,6 +251,8 @@ def evaluate_generation(
         else 0.0,
         "number_grounding": round(num_grounded / num_total, 4) if num_total else 1.0,
         "ttft_s_median": med("ttft_s"),
+        "ttft_answer_s_median": med("ttft_answer_s"),
+        "thinking_tokens_median": med("thinking_tokens"),
         "tps_median": med("tps"),
         "e2e_tps_median": med("e2e_tps"),
         "prompt_tokens_median": med("prompt_tokens"),

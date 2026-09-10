@@ -203,7 +203,13 @@ def cmd_ask(args) -> int:
     s = result.stats
     print(
         f"\n--- retrieval {result.retrieval_s * 1000:.1f} ms | "
-        f"TTFT {result.ttft_s:.3f} s (model {s.ttft_s:.3f} s) | "
+        f"TTFT {result.ttft_s:.3f} s (model {s.ttft_s:.3f} s"
+        + (
+            f", 首個答案 token {result.retrieval_s + s.ttft_answer_s:.3f} s"
+            if s.thinking_tokens
+            else ""
+        )
+        + ") | "
         f"{s.tps:.1f} tok/s decode | {s.e2e_tps:.1f} tok/s e2e | "
         f"{s.n_tokens} tokens | prompt {s.prompt_tokens} tokens"
     )

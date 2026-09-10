@@ -34,6 +34,7 @@ hides exactly the trade-off that retrieval depth controls.
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
@@ -44,6 +45,18 @@ from .config import GENERATION_MODELS, MODELS_DIR, ModelSpec
 # ggml tensor types accepted for the KV cache. Quantising it roughly halves
 # the KV footprint, which is the second-largest line in the VRAM ledger.
 KV_TYPES = {"f16": 1, "q8_0": 8, "q5_1": 7, "q4_0": 2}
+
+# Qwen3 emits <think>...</think> before the answer even with thinking disabled
+# (the block is just empty). Everything inside it is internal monologue: it must
+# not count towards the answer, and the first token *after* it is the one a user
+# actually waits for.
+THINK_BLOCK = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+THINK_CLOSE = "</think>"
+
+
+def strip_thinking(text: str) -> str:
+    """Remove the reasoning block, leaving the answer the user sees."""
+    return THINK_BLOCK.sub("", text).strip()
 
 
 @dataclass
@@ -57,6 +70,10 @@ class StreamStats:
     prompt_tokens: int = 0
     tps: float = 0.0
     e2e_tps: float = 0.0
+    # First token overall vs first token of the actual answer. They differ only
+    # on reasoning models, where the gap is the thinking block.
+    ttft_answer_s: float = 0.0
+    thinking_tokens: int = 0
     backend: str = ""
     model: str = ""
     extra: dict = field(default_factory=dict)
@@ -99,7 +116,10 @@ class BaseLLM:
         pieces: list[str] = []
         t0 = time.perf_counter()
         t_first: float | None = None
+        t_answer: float | None = None
         t_last = t0
+        in_thinking = False
+        seen = ""
 
         for piece in self.stream(messages, max_tokens=max_tokens, temperature=temperature):
             if not piece:
@@ -111,11 +131,27 @@ class BaseLLM:
             t_last = now
             stats.n_tokens += 1
             pieces.append(piece)
+
+            # Track the reasoning block so ttft_answer_s measures the first
+            # token the user actually reads.
+            seen += piece
+            if t_answer is None:
+                if "<think>" in seen and THINK_CLOSE not in seen:
+                    in_thinking = True
+                    stats.thinking_tokens += 1
+                elif THINK_CLOSE in seen or "<think>" not in seen:
+                    if in_thinking or "<think>" not in seen:
+                        stripped = strip_thinking(seen)
+                        if stripped:
+                            t_answer = now
+                            stats.ttft_answer_s = now - t0
             if on_token is not None:
                 on_token(piece)
 
         stats.total_s = time.perf_counter() - t0
         stats.decode_s = (t_last - t_first) if t_first is not None else 0.0
+        if not stats.ttft_answer_s:
+            stats.ttft_answer_s = stats.ttft_s
         return "".join(pieces), stats.finalise()
 
 
@@ -151,6 +187,7 @@ class LlamaCppLLM(BaseLLM):
         self.spec = spec
         self.name = spec.name
         self.backend = "llama-cpp-python"
+        self.thinking_switch = spec.thinking_switch
         self.n_ctx = n_ctx
         self.kv_type = kv_type
 
@@ -178,7 +215,19 @@ class LlamaCppLLM(BaseLLM):
     def count_tokens(self, text: str) -> int:
         return len(self._llama.tokenize(text.encode("utf-8"), add_bos=False, special=True))
 
+    def _apply_thinking_switch(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
+        if not self.thinking_switch:
+            return messages
+        out = [dict(m) for m in messages]
+        for m in out:
+            if m["role"] == "system":
+                m["content"] = f"{m['content']} {self.thinking_switch}"
+                return out
+        out.insert(0, {"role": "system", "content": self.thinking_switch})
+        return out
+
     def stream(self, messages, max_tokens: int, temperature: float) -> Iterator[str]:
+        messages = self._apply_thinking_switch(messages)
         for part in self._llama.create_chat_completion(
             messages=messages,
             max_tokens=max_tokens,
