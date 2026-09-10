@@ -36,7 +36,7 @@ uv run aorus-rag search "螢幕更新率是多少"       # 純檢索，不需要
 ```bash
 git clone <this repo> && cd aorus-rag
 uv sync                       # 建立環境（uv 會自動取得 Python 3.11）
-uv run pytest -q              # 23 個測試，不需要任何模型
+uv run pytest -q              # 29 個測試，不需要任何模型
 ```
 
 ### 安裝推論引擎（需編譯，約 5–10 分鐘）
@@ -57,14 +57,14 @@ CMAKE_ARGS="-DGGML_CUDA=on"  uv sync --extra llama
 ### 下載模型
 
 ```bash
-bash scripts/download_models.sh          # 預設組合 qwen2.5-3b + e5-small，約 2.06 GB
-bash scripts/download_models.sh all      # 全部五個模型，約 5.7 GB（做對照實驗用）
+bash scripts/download_models.sh          # 預設組合 qwen2.5-3b + bge-m3，約 2.56 GB
+bash scripts/download_models.sh all      # 全部五個模型，約 6.3 GB（做對照實驗用）
 ```
 
 ### 執行
 
 ```bash
-uv run aorus-rag build                               # 建語料 + 向量索引（預設 e5-small）
+uv run aorus-rag build                               # 建語料 + 向量索引（預設 bge-m3）
 uv run aorus-rag ask "這台的電池容量是多少？"           # 串流回答
 uv run aorus-rag ask "How many Type-C ports?" --show-context
 uv run aorus-rag eval-retrieval                      # 檢索評測（不需 LLM）
@@ -130,25 +130,51 @@ uv 會在專案內建立獨立的 `.venv`，與 notebook 預裝的數百個套�
 | 項目 | 配置 | 佔用 |
 |---|---|---|
 | 生成模型權重 | Qwen2.5-3B-Instruct **Q4_K_M** | **1.93 GB** |
-| KV cache | `n_ctx=4096`、`type_k/type_v=q8_0` | **~0.15 GB** |
+| KV cache | `n_ctx=4096`、`type_k/type_v=q8_0` | **0.075 GB** |
 | compute buffer / overhead | — | ~0.30 GB |
-| Embedding 模型 | multilingual-e5-small q8_0，**掛 CPU** | 0.13 GB（不計入 VRAM） |
-| **VRAM 合計** | | **≈ 2.4 GB / 4 GB** ✅ |
+| **VRAM 合計** | | **≈ 2.3 GB / 4 GB** ✅ |
+| Embedding 模型 | bge-m3 Q8_0，**掛 CPU**（`n_gpu_layers=0`） | 0.63 GB（不計入 VRAM） |
 
-KV cache 計算（Qwen2.5-3B：36 層、2 個 KV head × 128 dim）：
+KV cache 由 GGUF metadata 直接算出，不是估的：
 
 ```
-每 token = 2 (K,V) × 36 層 × 256 dim × 1 byte (q8_0) ≈ 18 KB
-4096 tokens ≈ 0.15 GB          （f16 則為 0.29 GB）
+從檔案讀到：block_count=36, embedding_length=2048,
+            head_count=16, head_count_kv=2
+head_dim  = 2048 / 16 = 128
+KV 維度   = head_count_kv × head_dim = 2 × 128 = 256
+
+每 token = 2 (K,V) × 36 層 × 256 × 1.0625 B (q8_0 含 scale) = 19.1 KB
+4096 tokens = 0.075 GB          （f16 則為 0.141 GB）
 ```
+
+> **一個反直覺的發現**：參數量只有一半的 Qwen3-1.7B，KV cache 反而大 3 倍 ——
+>
+> | 模型 | 層數 | KV heads | KV/token | @4096 q8_0 |
+> |---|---|---|---|---|
+> | Qwen2.5-3B | 36 | **2** | 36 KB | **0.075 GB** |
+> | Qwen3-1.7B | 28 | **8** | 112 KB | **0.232 GB** |
+>
+> 原因是 GQA 的壓縮程度不同：Qwen2.5-3B 把 KV head 從 16 個減到 2 個，
+> Qwen3-1.7B 只減到 8 個。**決定 KV cache 大小的是 KV head 數，不是參數量。**
+> 在 context 拉長時這個差距會放大，所以「換小模型」不必然省記憶體 ——
+> 要看你省的是權重還是 KV。
+
+> **關於 Apple Silicon 的統一記憶體**：M2 沒有獨立 VRAM，CPU 與 GPU 共用同一塊
+> 實體記憶體，因此「embedding 掛 CPU 所以不計入 VRAM」這個說法只在**有獨立
+> 顯示記憶體的環境**（如 Colab / Kaggle 的 T4）成立。在 Mac 上，總記憶體佔用
+> 是 1.93 + 0.63 + 0.075 + overhead ≈ 3.0 GB，仍在 4 GB 內，但兩個數字的意義不同：
+> 前者是「4 GB VRAM 限制」的達成證明，後者是本機實際佔用。README §7 的兩組
+> 硬體數據分別對應這兩種情況。
 
 ### 3.2 三組可選配置
 
-| 配置 | 生成模型 | Embedding | VRAM 小計 | 適用 |
-|---|---|---|---|---|
-| A 保守 | Qwen3-1.7B Q4_K_M `1.11 GB` | e5-small `0.13` | **~1.6 GB** | 4 GB 以下、極限環境 |
-| **B 預設** | **Qwen2.5-3B Q4_K_M `1.93 GB`** | **e5-small `0.13`** | **~2.4 GB** | **本專案預設** |
-| C 進取 | Qwen3-4B-Instruct-2507 Q4_K_M `2.50 GB` | bge-m3 Q8_0 `0.63` | ~3.3 GB | 4 GB 上限、追求品質 |
+| 配置 | 生成模型 | 權重 | KV@4096 q8_0 | VRAM 小計 | 適用 |
+|---|---|---|---|---|---|
+| A 保守 | Qwen3-1.7B Q4_K_M | 1.11 GB | 0.232 GB | **~1.6 GB** | 極限環境 |
+| **B 預設** | **Qwen2.5-3B Q4_K_M** | **1.93 GB** | **0.075 GB** | **~2.3 GB** | **本專案預設** |
+| C 進取 | Qwen3-4B-Instruct-2507 Q4_K_M | 2.50 GB | — | ~3.1 GB | 4 GB 上限、追品質 |
+
+Embedding 一律用 bge-m3 Q8_0（0.63 GB，掛 CPU）。
 
 ### 3.3 為什麼是 Qwen2.5-3B + Q4_K_M
 
@@ -280,7 +306,7 @@ Chrome 28 這種 HTTP/2 出現前的 UA 走 HTTP/1.1 並不矛盾，但一樣被
 
 ### 5.2 一個會產生「看似正確的錯誤答案」的陷阱
 
-規格頁同時包含 **AM6H 本身**與**三台姊妹機（BZH / BYH / BXH）的比較欄位**：
+規格頁同時包含 **AM6H 本身**與**三個 SKU（BZH / BYH / BXH）的比較欄位**：
 
 ```html
 <!-- AM6H：有 title 有 value -->
@@ -429,7 +455,7 @@ OOV 問題，且「更新率」與「螢幕更新率」仍能部分重疊。
 
 因此 embedding 的每一項模型專屬設定都跟著模型走，而不是寫死：
 
-| 模型專屬項目 | e5-small | bge-m3 | 實作位置 |
+| 模型專屬項目 | e5-small (BERT 系) | bge-m3 | 實作位置 |
 |---|---|---|---|
 | 非對稱前綴 | `query: ` / `passage: ` | 無 | `embed.PREFIXES`，查詢與語料分別套用 |
 | Pooling | mean | CLS | `ModelSpec.pooling` → llama.cpp `pooling_type` |
@@ -439,9 +465,9 @@ OOV 問題，且「更新率」與「螢幕更新率」仍能部分重疊。
 `index.npz` 記錄建索引時用的模型名稱，查詢時若不一致直接拒絕執行：
 
 ```
-$ uv run aorus-rag search "..." （索引是 hashing 建的，但要求 e5-small）
-error: index was built with 'hashing' but 'e5-small' was requested;
-       rebuild with `uv run aorus-rag build --embed-model e5-small`
+$ uv run aorus-rag search "..." （索引是 hashing 建的，但要求 bge-m3）
+error: index was built with 'hashing' but 'bge-m3' was requested;
+       rebuild with `uv run aorus-rag build --embed-model bge-m3`
 ```
 
 `hashing` fallback 只用於零下載的管線驗證，使用時 build / search /
@@ -523,23 +549,50 @@ decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.6 那條取捨。
 
 #### 檢索：dense vs BM25 vs hybrid
 
-以下為**已實測**數據（36 題中 31 題有 gold document；`hashing` embedder）：
+實測數據（36 題中 31 題有 gold document，embedder = bge-m3 Q8_0）：
 
 | retriever | Recall@1 | Recall@3 | Recall@5 | MRR | 中位延遲 |
 |---|---|---|---|---|---|
-| dense (hashing) | 0.742 | 0.806 | 0.903 | 0.786 | 0.06 ms |
-| **bm25** | **0.903** | **0.935** | **1.000** | **0.927** | 0.15 ms |
-| hybrid | 0.871 | 0.935 | 0.935 | 0.898 | 0.21 ms |
+| dense (bge-m3) | **0.968** | **1.000** | 1.000 | **0.984** | 23.7 ms |
+| bm25 | 0.903 | 0.935 | 1.000 | 0.927 | **0.14 ms** |
+| hybrid (RRF) | 0.968 | 1.000 | 1.000 | 0.984 | 22.8 ms |
 
-> **這組數字的正確讀法**：`hashing` 是零依賴的 fallback embedder
-> （token 雜湊 + 符號投影），**只捕捉字面重疊、完全沒有語意能力**——
-> 它無法把「螢幕多亮」對到 `brightness`。在這個條件下 dense 只是一個較差的
-> 詞彙檢索器，BM25 勝出是預期內的結果，hybrid 被拖累也是。
->
-> 這組數字的價值在於**確立 lexical-only 的下界**：即使完全沒有語意檢索，
-> Key-anchored chunking + BM25 已經能達到 Recall@5 = 1.000。
-> 真正的 dense / hybrid 對照需要換上 `e5-small`：
-> `uv run aorus-rag build --embed-model e5-small && uv run aorus-rag eval-retrieval`
+**三個值得說明的結果：**
+
+**① Hybrid 沒有贏過 dense。** 在這個語料規模（236 chunks）配上一顆強的多語
+embedding 模型，dense 的 Recall@3 已經是 1.000 —— 沒有空間可以再改善。
+Hybrid 在這裡的價值不是提升上限，而是**在 dense 失效時提供保底**
+（BM25 單獨就有 Recall@5 = 1.000）。若語料擴大到數千 chunk、或換上較弱的
+embedder，兩者的差距才會出現。誠實地說：**就這份資料而言，hybrid 是保險，不是增益。**
+
+**② BM25 輸的正好是「換句話說」的題目。** 逐題比對後，BM25 排名落後而 dense
+排第一的只有兩題，都是跨欄位推理題：
+
+```
+rs01  我想外接兩台 4K 螢幕，這台有哪些影像輸出接孔可以用？   bm25 第 5 名 → dense 第 1 名
+rs02  出門只想帶一條線，同時充電又外接螢幕，該插哪個孔？      bm25 第 5 名 → dense 第 1 名
+```
+
+規格表的原文是 `1 x HDMI 2.1` 和 `Type-C with Thunderbolt™5 (support USB4,
+DisplayPort™ 2.1 and Power Delivery 3.0)` —— 字面上完全沒有「4K」「外接」
+「充電」。**這就是語意檢索存在的理由，也是純 BM25 方案的天花板。**
+
+dense 唯一沒排第一的是 `顯示卡是哪一張？`（第 2 名）—— 口語的「顯示卡」
+對上規格表的「顯示晶片」。
+
+**③ 那 23 ms 幾乎全部是 embedding，不是搜尋。**
+
+```
+把問題轉成向量（bge-m3 跑 CPU）    20.78 ms   ← 佔 100%
+236×1024 矩陣乘法找最相似          0.031 ms   ← 千分之一
+```
+
+**向量搜尋本身是免費的**（31 微秒），這也證實了不引入 FAISS/HNSW 的判斷 ——
+近似最近鄰要優化的那 0.031 ms 根本不是瓶頸。
+
+真正的取捨是：**dense 用 21 ms 的 TTFT 換 +6.5 個百分點的 Recall@1**。
+在單人、延遲敏感的情境下，這個交換是否值得取決於延遲預算；若要壓 TTFT，
+把 embedder 換小或移上 GPU 比優化搜尋演算法有效得多。
 
 #### 生成品質與延遲
 
@@ -590,7 +643,9 @@ AM6H 為 2025 年新品，模型預訓練資料不可能包含其規格，
 
 1. **生成端數據尚未量測**（見 §7.3）；檢索端數據為實測。
 2. **`hashing` embedder 沒有語意能力**，只作為零依賴的開發／測試 fallback，
-   不應視為正式檢索器。
+   不應視為正式檢索器；正式數據一律以 bge-m3 為準。
+   另外，`cstr/multilingual-e5-small-GGUF` 這份轉檔在目前的 llama.cpp 無法載入
+   （缺 `bert.token_type_count`），設定檔中保留該選項但標註了此限制。
 3. **LLM-as-judge 未採用**。用同一顆 3B 模型評自己的答案不可靠，
    本專案改用 `must_include` 關鍵字命中與 number grounding 這類
    可驗證、可重現的自動指標，並誠實承認其覆蓋面較窄
@@ -641,7 +696,7 @@ src/aorus_rag/
   pipeline.py    build / ask 兩階段編排
   bench.py       檢索與生成評測
   cli.py         指令列介面
-tests/                                        23 個測試，不需模型
+tests/                                        29 個測試，不需模型
 ```
 
 ## 授權
