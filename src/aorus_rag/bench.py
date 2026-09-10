@@ -62,7 +62,7 @@ class EvalQuestion:
     lang: str
     type: str
     gold_docs: list[str] = field(default_factory=list)
-    must_include: list[str] = field(default_factory=list)
+    must_include: list = field(default_factory=list)
     must_refuse: bool = False
 
 
@@ -126,24 +126,28 @@ def is_refusal(answer: str) -> bool:
     return any(m.lower() in lowered for m in REFUSAL_MARKERS)
 
 
-def keyword_hit(answer: str, must_include: list[str]) -> bool:
-    """All-of semantics, but each entry may be an alternatives group.
+def keyword_hit(answer: str, must_include: list) -> bool:
+    """Every entry must be satisfied; a list entry is an alternatives group.
 
-    ``["Left", "左"]`` in the eval set means "Left OR 左" for location answers;
-    entries are treated as alternatives when they are short location/unit
-    synonyms, so the set is written as a flat list and compared case-folded.
+        ["99Wh"]                    -> "99Wh" must appear
+        ["2560", "1600"]            -> both must appear
+        [["Left", "左"]]            -> either one is enough
+
+    The alternatives form exists because a bilingual system may legitimately
+    answer "在左側" or "on the Left side"; demanding both would score a correct
+    answer as wrong. Making that explicit in the data beats inferring it from
+    the question type, which is what an earlier version did -- and got wrong.
     """
     if not must_include:
         return True
     lowered = answer.lower()
-    return all(term.lower() in lowered for term in must_include)
-
-
-def keyword_hit_any(answer: str, must_include: list[str]) -> bool:
-    if not must_include:
-        return True
-    lowered = answer.lower()
-    return any(term.lower() in lowered for term in must_include)
+    for term in must_include:
+        if isinstance(term, list):
+            if not any(t.lower() in lowered for t in term):
+                return False
+        elif term.lower() not in lowered:
+            return False
+    return True
 
 
 def number_grounding(answer: str, context: str) -> tuple[int, int]:
@@ -203,9 +207,7 @@ def evaluate_generation(
                 "retrieval_ms": round(retrieval_ms, 2),
                 "prompt_tokens": prompt_tokens,
                 "context_chars": runs[-1].context_chars,
-                "keyword_ok": keyword_hit_any(answer, q.must_include)
-                if q.type == "reasoning"
-                else keyword_hit(answer, q.must_include),
+                "keyword_ok": keyword_hit(answer, q.must_include),
                 "refused": is_refusal(answer),
                 "numbers_grounded": grounded,
                 "numbers_total": total_numbers,
