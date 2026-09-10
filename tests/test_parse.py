@@ -128,3 +128,36 @@ def test_validation_rejects_contaminated_tables(tables, label, mutate):
     zh, _ = tables
     with pytest.raises(ValueError):
         parse.validate_spec_items(mutate(list(zh)), label)
+
+
+def test_sku_variants_are_paired_with_their_model_code():
+    """BZH/BYH/BXH are SKUs of the AM6H differing only in GPU. Their values live
+    in unlabelled div blocks; the model names live in a separate subtitle. The
+    parser must pair them by column order, or a value lands on the wrong model."""
+    zh = parse.parse_spec_table(fetch.load_cached("spec_zh"))
+    variants, differing = parse.parse_sku_variants(fetch.load_cached("spec_zh"))
+
+    assert [v.code for v in variants] == ["BZH", "BYH", "BXH"]
+    # Only the GPU row differs; the other sixteen are identical across SKUs.
+    assert [zh[i].key for i in differing] == ["顯示晶片"]
+
+    gpus = {v.code: v.values[differing[0]] for v in variants}
+    assert "5090" in gpus["BZH"]
+    assert "5080" in gpus["BYH"]
+    assert "5070 Ti" in gpus["BXH"]
+
+
+def test_sku_chunks_bind_every_value_to_a_model_code():
+    from aorus_rag import chunk as chunking
+
+    zh = parse.parse_spec_table(fetch.load_cached("spec_zh"))
+    en = parse.parse_spec_table(fetch.load_cached("spec_en"))
+    variants, differing = parse.parse_sku_variants(fetch.load_cached("spec_zh"))
+    chunks = chunking.chunk_sku_variants(variants, differing, zh, en)
+
+    assert len(chunks) == 1 + len(variants) * len(differing)
+    for c in chunks:
+        if c.chunk_id == "sku.overview":
+            continue
+        # The whole point: a GPU value never appears without its model code.
+        assert c.meta["sku"] in c.text

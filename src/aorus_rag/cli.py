@@ -179,9 +179,34 @@ def cmd_search(args) -> int:
 def cmd_ask(args) -> int:
     pipeline = _load_pipeline(args)
 
+    # Reasoning models stream a <think> block before the answer. With thinking
+    # switched off it is empty, but printing "<think></think>" to a user is
+    # noise, so suppress it as it streams rather than after the fact.
+    state = {"buf": "", "open": False, "done": False}
+
     def emit(piece: str) -> None:
-        sys.stdout.write(piece)
-        sys.stdout.flush()
+        if state["done"]:
+            sys.stdout.write(piece)
+            sys.stdout.flush()
+            return
+        state["buf"] += piece
+        buf = state["buf"]
+        if "</think>" in buf:
+            state["done"] = True
+            tail = buf.split("</think>", 1)[1].lstrip()
+            state["buf"] = ""
+            if tail:
+                sys.stdout.write(tail)
+                sys.stdout.flush()
+        elif (
+            "<think>" in buf or "<think".startswith(buf.strip()[:6]) or buf.strip().startswith("<")
+        ):
+            state["open"] = True  # still inside (or possibly entering) the block
+        else:
+            state["done"] = True
+            sys.stdout.write(buf)
+            sys.stdout.flush()
+            state["buf"] = ""
 
     result = pipeline.answer(
         args.question,
@@ -190,6 +215,9 @@ def cmd_ask(args) -> int:
         on_token=None if args.no_stream else emit,
         use_rag=not args.no_rag,
     )
+    from .llm import strip_thinking
+
+    result.answer = strip_thinking(result.answer)
     if args.no_stream:
         print(result.answer)
     else:

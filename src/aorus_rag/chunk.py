@@ -30,7 +30,7 @@ from pathlib import Path
 
 from .config import SOURCES
 from .normalize import Fact
-from .parse import FeatureBlock, SpecItem
+from .parse import FeatureBlock, SkuVariant, SpecItem
 
 # Sentence-ish boundaries for both scripts.
 _SENT_SPLIT = re.compile(r"(?<=[。！？；!?;])\s*|\n+")
@@ -220,3 +220,61 @@ def read_corpus(path: Path) -> list[Chunk]:
         )
     with path.open(encoding="utf-8") as fh:
         return [Chunk(**json.loads(line)) for line in fh if line.strip()]
+
+
+def chunk_sku_variants(
+    variants: list[SkuVariant],
+    differing_rows: list[int],
+    zh_items: list[SpecItem],
+    en_items: list[SpecItem],
+) -> list[Chunk]:
+    """One chunk per SKU per differing row, plus an overview.
+
+    Every value is prefixed with the model code it belongs to. That prefix is
+    the whole point: the same three values merged without labels would be three
+    contradictory answers to "what GPU does this have?", which is exactly the
+    failure `parse_spec_table` exists to prevent. Bound to a model code they
+    become three answers to three different questions.
+    """
+    if not variants or not differing_rows:
+        return []
+
+    chunks: list[Chunk] = []
+    keys_zh = [zh_items[i].key for i in differing_rows]
+    keys_en = [en_items[i].key for i in differing_rows]
+    codes = "、".join(v.code for v in variants)
+    same_count = len(zh_items) - len(differing_rows)
+
+    chunks.append(
+        Chunk(
+            chunk_id="sku.overview",
+            doc_id="sku",
+            kind="sku",
+            text=(
+                f"機型版本 / Model variants: AORUS MASTER 16 AM6H 共有 {len(variants)} 個型號"
+                f"（{codes}），規格差異僅在「{'、'.join(keys_zh)}」"
+                f"（{', '.join(keys_en)}），其餘 {same_count} 項規格三個型號完全相同。"
+            ),
+            key_zh="機型版本",
+            key_en="Model variants",
+            source=SOURCES["spec_zh"],
+            meta={"skus": [v.code for v in variants], "differing_keys": keys_en},
+        )
+    )
+
+    for v in variants:
+        for row in differing_rows:
+            zh_key, en_key = zh_items[row].key, en_items[row].key
+            chunks.append(
+                Chunk(
+                    chunk_id=f"sku.{v.code.lower()}.{row}",
+                    doc_id=f"sku.{v.code.lower()}",
+                    kind="sku",
+                    text=f"{v.full_name} 的{zh_key} / {en_key}: {v.values[row]}",
+                    key_zh=f"{v.code} {zh_key}",
+                    key_en=f"{v.code} {en_key}",
+                    source=SOURCES["spec_zh"],
+                    meta={"sku": v.code, "spec_key": en_key},
+                )
+            )
+    return chunks

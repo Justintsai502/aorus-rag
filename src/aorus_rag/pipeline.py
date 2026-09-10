@@ -43,10 +43,12 @@ def build_corpus(offline: bool = True, force_fetch: bool = False) -> list[Chunk]
     parse.validate_spec_items(en_items, "spec_en")
 
     facts = normalize.extract_facts(zh_items, en_items)
+    variants, differing = parse.parse_sku_variants(fetch.load_cached("spec_zh"))
 
     chunks: list[Chunk] = []
     chunks += chunking.chunk_facts(facts)
     chunks += chunking.chunk_spec_rows(zh_items, en_items)
+    chunks += chunking.chunk_sku_variants(variants, differing, zh_items, en_items)
     for lang, key in (("zh", "feature_zh"), ("en", "feature_en")):
         try:
             blocks = parse.parse_feature_page(fetch.load_cached(key))

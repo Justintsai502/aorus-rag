@@ -10,9 +10,11 @@ Prompt 組裝、Streaming 解析全部為純 Python 實作，共約 2,700 行。
 
 ```bash
 uv sync
-uv run aorus-rag build --embed-model hashing   # 零下載，僅供跑通管線（會印出警告）
-uv run aorus-rag search "螢幕更新率是多少"       # 純檢索，不需要生成模型
+uv run aorus-rag search "螢幕更新率是多少"    # 立刻可用，不需要 build、不需要任何模型
 ```
+
+**語料與向量索引已建好並 commit 進 repo**（`data/corpus.jsonl` + `data/index.npz`），
+所以 clone 下來就能直接查詢。`build` 只有在你想重新抓網頁或換 embedding 模型時才需要。
 
 **實測結果**（MacBook Pro M2 8GB、Metal、Qwen3-1.7B Q4_K_M + bge-m3、top-5）：
 
@@ -72,9 +74,20 @@ bash scripts/download_models.sh all      # 全部五個模型，約 6.3 GB（做
 
 ### 執行
 
+**不需要 build。** `data/corpus.jsonl`（240 chunks）與 `data/index.npz`
+（240 × 1024，bge-m3 建立）都已 commit 進 repo，clone 下來即可使用：
+
 ```bash
-uv run aorus-rag build                               # 建語料 + 向量索引（預設 bge-m3）
-uv run aorus-rag ask "這台的電池容量是多少？"           # 串流回答
+uv run aorus-rag search "Thunderbolt 5 在哪一側"     # 純檢索，零模型
+uv run aorus-rag ask "這台的電池容量是多少？"          # 需要生成模型
+```
+
+只有這些情況需要重跑 `build`：重新抓網頁（`--refresh`）、換 embedding 模型、
+或修改了 chunking 邏輯。
+
+
+```bash
+uv run aorus-rag ask "這台的電池容量是多少？"           # 串流回答（不需要 build）
 uv run aorus-rag ask "How many Type-C ports?" --show-context
 uv run aorus-rag eval-retrieval                      # 檢索評測（不需 LLM）
 uv run aorus-rag bench --repeats 3 --top-k-sweep 1 3 5 8 --no-rag-control
@@ -110,7 +123,7 @@ uv 會在專案內建立獨立的 `.venv`，與 notebook 預裝的數百個套�
    4 個頁面    │      ↓                                                                │
   (zh / en)   │  normalize.py  規則式抽取 56 條原子事實（240Hz、99Wh、TB5 在左側…）      │
               │      ↓                                                                │
-              │  chunk.py      Key-anchored 三層切分 → 236 chunks                      │
+              │  chunk.py      Key-anchored 三層切分 → 240 chunks                      │
               │      ↓                                                                │
               │  embed.py      llama.cpp embedding（CPU）→ index.py → data/index.npz   │
               └──────────────────────────────────────────────────────────────────────┘
@@ -469,7 +482,7 @@ I/O 列另有專屬處理：原始文字以 `Left Side:` / `Right Side:` 分段�
 幾乎不帶「它回答什麼問題」的訊號；而依照 §5.3 的發現，中文問題在值裡
 沒有任何中文可匹配。
 
-語料組成（236 chunks）：
+語料組成（240 chunks）：
 
 | kind | 數量 | 來源 |
 |---|---|---|
@@ -509,7 +522,7 @@ RRF    → 用「排名」而非「分數」融合，
    embedder 不熟的領域，BM25 這條路仍在。
 2. **它是可切換的 ablation 組。** `--retriever dense|bm25|hybrid` 讓這個
    結論是被量出來的，而不是被假設的。
-3. **在更大的語料上結論可能反轉。** 236 chunks 太小，dense 很容易飽和；
+3. **在更大的語料上結論可能反轉。** 240 chunks 太小，dense 很容易飽和；
    數千 chunk 時 hybrid 通常才會顯出價值。
 
 > 這一節保留原始假設與否定它的數據，是刻意的。**把「我猜 hybrid 會贏」改寫成
@@ -545,14 +558,63 @@ error: index was built with 'hashing' but 'bge-m3' was requested;
 `hashing` fallback 只用於零下載的管線驗證，使用時 build / search /
 eval-retrieval 都會在 stderr 印出醒目警告，避免它的數字被誤當成正式結果。
 
-### 6.4 檢索後處理
+### 6.4 SKU 變體：把「排除」改成「標記」
+
+§5.2 排除了桌機比較表，因為把三個型號的值無標記地混進語料，會讓
+「顯示卡是什麼」出現三個互相矛盾的答案。但那些資訊本身是有價值的 ——
+**BZH / BYH / BXH 是 AM6H 實際販售的三個型號**，使用者確實可能問到。
+
+正確做法不是排除，是**綁定**：
+
+```
+解析 div.model-base-info-subtitle       →  型號順序 BZH, BYH, BXH
+解析 div.spec-item-list[data-spec-row]  →  各欄位的值（同順序）
+        ↓ 依索引配對
+自動偵測「哪些列在型號之間有差異」        →  實測只有「顯示晶片」1 列
+        ↓
+產生 4 個標記清楚的 chunk
+```
+
+```
+機型版本 / Model variants: AORUS MASTER 16 AM6H 共有 3 個型號（BZH、BYH、BXH），
+  規格差異僅在「顯示晶片」，其餘 16 項規格三個型號完全相同。
+AORUS MASTER 16 BZH 的顯示晶片: RTX 5090 Laptop GPU; 24GB GDDR7; 175W...
+AORUS MASTER 16 BYH 的顯示晶片: RTX 5080 Laptop GPU; 16GB GDDR7; 175W...
+AORUS MASTER 16 BXH 的顯示晶片: RTX 5070 Ti Laptop GPU; 12GB GDDR7; 140W...
+```
+
+**每個值前面都綁著它所屬的型號代號。** 同樣三個值，無標記時是「一個問題的三個
+矛盾答案」，綁定後變成「三個不同問題的三個答案」。
+
+只為「有差異的列」產生 chunk（實測是 1 列），相同的 16 列已由主規格表覆蓋，
+重複產生只會製造近似重複的 chunk。若之後 GIGABYTE 讓型號在更多欄位分歧，
+`parse_sku_variants()` 會自動偵測到並多產生對應的 chunk。
+
+**迴歸驗證**（加入 SKU chunk 前後）：
+
+| | Recall@1 | Recall@3 | MRR | 「顯示卡是哪一張」 | 「video memory」 |
+|---|---|---|---|---|---|
+| 加入前 | 0.968 | 1.000 | 0.984 | RTX 5090 ✅ | 24GB ✅ |
+| 加入後 | 0.968 | 1.000 | 0.984 | RTX 5090 ✅ | 24GB ✅ |
+
+檢索指標完全不變，原有答案不受影響，同時新增了回答型號問題的能力：
+
+```
+Q: 哪個型號搭載 RTX 5080？
+A: AORUS MASTER 16 BYH 搭載 RTX 5080 [3]。
+
+Q: BZH 和 BXH 差在哪裡？
+A: BZH 和 BXH 的差異在於顯示晶片。BZH 使用 RTX 5090；BXH 使用 RTX 5070 Ti。
+```
+
+### 6.5 檢索後處理
 
 - **Key 精確命中 boost**（+35%）：問題字面包含某 chunk 的鍵時直接加權。
   「螢幕更新率是多少」含有「螢幕更新率」——這比任何相似度分數都強，且成本是一次子字串比對。
 - **Doc 級多樣性**：同一規格列最多取 2 個 chunk，避免 context 是同一列的五種切法。
 - **精度優先的 tie-break**：分數相同時 `fact` > `spec_line` > `spec_row` > `feature`。
 
-### 6.5 Prompt 設計
+### 6.6 Prompt 設計
 
 四條硬性規則（`prompt.py`）：
 
@@ -561,7 +623,7 @@ eval-retrieval 都會在 stderr 印出醒目警告，避免它的數字被誤當
 3. 每個事實標來源編號 `[1]`
 4. 使用者用什麼語言就用什麼語言回答；中文用台灣用語
 
-### 6.6 核心取捨：top-k 與 TTFT
+### 6.7 核心取捨：top-k 與 TTFT
 
 ```
 TTFT ≈ 檢索時間 + prefill 時間
@@ -654,7 +716,7 @@ e2e_tps   n_tokens / total_s             端到端，包含 prefill
 ```
 
 分開報 decode-only 與 end-to-end 是必要的：prefill 是整段 prompt 的 GEMM、
-decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.6 那條取捨。
+decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.7 那條取捨。
 
 每題跑 3 次取中位數，第一次 warmup 不計。
 
@@ -672,7 +734,7 @@ decode 是每 token 一次 GEMV，混在一起會掩蓋 §6.6 那條取捨。
 
 **三個值得說明的結果：**
 
-**① Hybrid 沒有贏過 dense。** 在這個語料規模（236 chunks）配上一顆強的多語
+**① Hybrid 沒有贏過 dense。** 在這個語料規模（240 chunks）配上一顆強的多語
 embedding 模型，dense 的 Recall@3 已經是 1.000 —— 沒有空間可以再改善。
 Hybrid 在這裡的價值不是提升上限，而是**在 dense 失效時提供保底**
 （BM25 單獨就有 Recall@5 = 1.000）。若語料擴大到數千 chunk、或換上較弱的
@@ -697,7 +759,7 @@ dense 唯一沒排第一的是 `顯示卡是哪一張？`（第 2 名）—— �
 
 ```
 把問題轉成向量（bge-m3 跑 CPU）    20.78 ms   ← 佔 100%
-236×1024 矩陣乘法找最相似          0.031 ms   ← 千分之一
+240×1024 矩陣乘法找最相似          0.031 ms   ← 千分之一
 ```
 
 **向量搜尋本身是免費的**（31 微秒），這也證實了不引入 FAISS/HNSW 的判斷 ——
@@ -724,7 +786,7 @@ dense 唯一沒排第一的是 `顯示卡是哪一張？`（第 2 名）—— �
 | 8 | 650 | 0.296 | 35.1 | 32.0 | 96.8% | 100% | 0.0% | 100% |
 
 **預測被完全證實**：prompt 從 269 → 650 tokens，**TTFT 惡化 2.9 倍（0.102 → 0.296 s）**，
-而 **TPS 幾乎不動（36.0 → 35.1，−2.5%）**。原因就是 §6.6 那條 ——
+而 **TPS 幾乎不動（36.0 → 35.1，−2.5%）**。原因就是 §6.7 那條 ——
 prefill 是整段 prompt 的 GEMM（隨長度線性成長），decode 是每 token 一次 GEMV
 （與 prompt 長度幾乎無關）。
 
@@ -915,7 +977,7 @@ rag_top5:  TTFT 0.045 s  →  答案首字 0.113 s   額外 68 ms
 pyproject.toml / uv.lock / .python-version    uv 環境定義（lock 已 commit）
 scripts/download_models.sh                    GGUF 下載（純 curl，可續傳）
 data/raw/*.html                               快取網頁（可離線重現）
-data/corpus.jsonl                             236 個 chunk
+data/corpus.jsonl                             240 個 chunk
 data/eval/qa.jsonl                            36 題評測集
 results/                                      評測輸出
 src/aorus_rag/

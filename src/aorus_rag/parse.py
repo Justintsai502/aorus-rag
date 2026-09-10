@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from html import unescape as html_unescape
 from html.parser import HTMLParser
 from typing import ClassVar
 
@@ -301,3 +302,75 @@ def validate_spec_items(items: list[SpecItem], label: str) -> None:
         for marker in SIBLING_MARKERS:
             if marker in blob:
                 raise ValueError(f"{label}: row {item.key} leaked sibling-model content ({marker})")
+
+
+# --------------------------------------------------------------------------
+# SKU variants
+#
+# AM6H is the model page; BZH / BYH / BXH are its sellable SKUs (their own URLs
+# 302 to this page). The desktop comparison widget carries one column per SKU in
+# `div.spec-item-list[data-spec-row=N]` blocks that hold values but no labels --
+# the SKU names live separately in `div.model-base-info-subtitle`, in the same
+# order as the columns.
+#
+# `parse_spec_table` deliberately excludes those blocks, because merging
+# unlabelled values would put three contradictory answers behind one question.
+# This parser does the opposite and the only safe thing: it pairs each value
+# back with the SKU it belongs to, so the information can be added to the corpus
+# *bound to its model code* rather than floating free.
+# --------------------------------------------------------------------------
+
+_SUBTITLE = re.compile(r'<div class="model-base-info-subtitle">(.*?)</div>', re.DOTALL)
+_SKU_ROW = re.compile(r'<div class="spec-item-list" data-spec-row="(\d+)">(.*?)</div>', re.DOTALL)
+_SKU_CODE = re.compile(r"AORUS MASTER 16 ([A-Z0-9]+)")
+
+
+@dataclass
+class SkuVariant:
+    """One purchasable configuration and the spec rows where it differs."""
+
+    code: str  # "BZH"
+    full_name: str  # "AORUS MASTER 16 BZH"
+    values: dict[int, str] = field(default_factory=dict)  # row index -> value
+
+
+def _sku_cell_text(raw: str) -> str:
+    text = re.sub(r"<br\s*/?>", "\n", raw)
+    text = re.sub(r"<[^>]+>", " ", text)
+    lines = [_clean(line) for line in html_unescape(text).split("\n")]
+    return "; ".join(line for line in lines if line)
+
+
+def parse_sku_variants(html: str) -> tuple[list[SkuVariant], list[int]]:
+    """Return the SKUs and the indices of the spec rows that differ between them.
+
+    Rows identical across every SKU are omitted: they are already covered by the
+    main spec table, and repeating them per SKU would add near-duplicate chunks
+    for no gain.
+    """
+    subtitle = _SUBTITLE.search(html)
+    if not subtitle:
+        return ([], [])
+    codes = _SKU_CODE.findall(html_unescape(subtitle.group(1)))
+    if not codes:
+        return ([], [])
+
+    columns: dict[int, list[str]] = {}
+    for idx, body in _SKU_ROW.findall(html):
+        columns.setdefault(int(idx), []).append(_sku_cell_text(body))
+
+    n = len(codes)
+    if not columns or any(len(v) != n for v in columns.values()):
+        # Layout changed; better to add nothing than to mispair a value.
+        return ([], [])
+
+    differing = sorted(i for i, vals in columns.items() if len(set(vals)) > 1)
+    variants = [
+        SkuVariant(
+            code=code,
+            full_name=f"AORUS MASTER 16 {code}",
+            values={i: columns[i][col] for i in differing},
+        )
+        for col, code in enumerate(codes)
+    ]
+    return (variants, differing)
