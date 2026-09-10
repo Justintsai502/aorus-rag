@@ -109,6 +109,10 @@ GENERATION_MODELS: dict[str, ModelSpec] = {
 }
 
 EMBEDDING_MODELS: dict[str, ModelSpec] = {
+    # NOTE: this conversion predates a llama.cpp requirement and fails to load
+    # with "bert model needs to define token type count" -- the GGUF carries
+    # tokenizer.ggml.token_type but not bert.token_type_count. Kept here so the
+    # smaller option is documented; use bge-m3 unless a newer conversion appears.
     "e5-small": ModelSpec(
         name="e5-small",
         repo="cstr/multilingual-e5-small-GGUF",
@@ -128,7 +132,7 @@ EMBEDDING_MODELS: dict[str, ModelSpec] = {
 }
 
 DEFAULT_GENERATION_MODEL = os.environ.get("AORUS_RAG_GEN_MODEL", "qwen2.5-3b")
-DEFAULT_EMBEDDING_MODEL = os.environ.get("AORUS_RAG_EMBED_MODEL", "e5-small")
+DEFAULT_EMBEDDING_MODEL = os.environ.get("AORUS_RAG_EMBED_MODEL", "bge-m3")
 
 
 @dataclass

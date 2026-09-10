@@ -58,7 +58,7 @@ HASHING_WARNING = (
     "!! and has NO semantic ability (it cannot match 螢幕多亮 to 'brightness').\n"
     "!! Retrieval numbers from it are a lexical-only lower bound, not a result.\n"
     "!! For real numbers: bash scripts/download_models.sh && "
-    "uv run aorus-rag build --embed-model e5-small"
+    "uv run aorus-rag build --embed-model bge-m3"
 )
 
 

@@ -1,16 +1,16 @@
 {
-  "embed_model": "hashing",
+  "embed_model": "bge-m3",
   "modes": {
     "dense": {
       "mode": "dense",
       "n_questions": 31,
       "recall": {
-        "@1": 0.7419,
-        "@3": 0.8065,
-        "@5": 0.9032
+        "@1": 0.9677,
+        "@3": 1.0,
+        "@5": 1.0
       },
-      "mrr": 0.786,
-      "latency_ms_median": 0.059,
+      "mrr": 0.9839,
+      "latency_ms_median": 23.655,
       "per_question": [
         {
           "id": "zh01",
@@ -18,9 +18,9 @@
           "retrieved": [
             "fact.battery",
             "spec.battery",
+            "spec.video_graphics",
             "fact.battery",
-            "feature.zh.root",
-            "fact.storage"
+            "feature.zh.root"
           ]
         },
         {
@@ -28,10 +28,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.display",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root",
-            "feature.zh.root",
-            "fact.display"
+            "spec.display",
+            "spec.display",
+            "fact.display",
+            "spec.video_graphics"
           ]
         },
         {
@@ -39,9 +39,9 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.display",
+            "spec.display",
             "fact.display",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root",
+            "spec.display",
             "feature.zh.root"
           ]
         },
@@ -49,21 +49,21 @@
           "id": "zh04",
           "first_gold_rank": 0,
           "retrieved": [
-            "fact.cpu",
-            "fact.cpu",
+            "spec.cpu",
             "feature.zh.root",
-            "feature.zh.root",
-            "spec.cpu"
+            "spec.video_graphics",
+            "fact.cpu",
+            "feature.zh.root"
           ]
         },
         {
           "id": "zh05",
-          "first_gold_rank": 2,
+          "first_gold_rank": 1,
           "retrieved": [
             "spec.display",
-            "spec.display",
             "spec.video_graphics",
             "spec.video_graphics",
+            "fact.gpu",
             "fact.io"
           ]
         },
@@ -72,10 +72,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "spec.system_memory",
-            "fact.memory",
             "spec.system_memory",
             "fact.memory",
-            "fact.gpu"
+            "fact.storage",
+            "spec.storage"
           ]
         },
         {
@@ -84,9 +84,9 @@
           "retrieved": [
             "spec.adapter",
             "fact.adapter",
-            "feature.zh.root",
-            "feature.zh.root",
-            "fact.io"
+            "spec.video_graphics",
+            "spec.display",
+            "fact.gpu"
           ]
         },
         {
@@ -95,9 +95,9 @@
           "retrieved": [
             "fact.weight",
             "spec.weight",
-            "fact.color",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root"
+            "spec.weight",
+            "fact.dimensions",
+            "fact.color"
           ]
         },
         {
@@ -106,9 +106,9 @@
           "retrieved": [
             "spec.system_memory",
             "spec.system_memory",
+            "spec.storage",
             "fact.memory",
-            "fact.memory",
-            "fact.gpu"
+            "fact.memory"
           ]
         },
         {
@@ -117,64 +117,64 @@
           "retrieved": [
             "fact.keyboard",
             "spec.keyboard_type",
-            "feature.zh.root",
+            "spec.display",
             "fact.keyboard",
             "feature.zh.root"
           ]
         },
         {
           "id": "en01",
-          "first_gold_rank": null,
+          "first_gold_rank": 0,
           "retrieved": [
-            "spec.weight",
-            "spec.dimensions_w_x_d_x_h",
+            "fact.battery",
+            "spec.video_graphics",
             "feature.en.root",
             "feature.en.root",
-            "spec.storage"
+            "spec.weight"
           ]
         },
         {
           "id": "en02",
           "first_gold_rank": 0,
           "retrieved": [
-            "fact.gpu",
             "spec.video_graphics",
             "feature.en.root",
-            "feature.en.root",
-            "spec.video_graphics"
+            "fact.gpu",
+            "spec.video_graphics",
+            "feature.en.root"
           ]
         },
         {
           "id": "en03",
-          "first_gold_rank": 4,
+          "first_gold_rank": 0,
           "retrieved": [
-            "feature.en.root",
-            "feature.en.root",
-            "spec.weight",
-            "spec.dimensions_w_x_d_x_h",
-            "fact.gpu"
+            "fact.gpu",
+            "spec.video_graphics",
+            "spec.video_graphics",
+            "fact.gpu",
+            "fact.cpu"
           ]
         },
         {
           "id": "en04",
-          "first_gold_rank": 3,
+          "first_gold_rank": 0,
           "retrieved": [
-            "feature.en.root",
-            "feature.en.root",
-            "spec.weight",
+            "fact.gpu",
             "spec.video_graphics",
-            "spec.dimensions_w_x_d_x_h"
+            "spec.video_graphics",
+            "fact.gpu",
+            "feature.en.root"
           ]
         },
         {
           "id": "en05",
-          "first_gold_rank": 3,
+          "first_gold_rank": 0,
           "retrieved": [
-            "feature.en.root",
-            "feature.en.root",
-            "spec.weight",
+            "spec.display",
+            "spec.display",
             "fact.display",
-            "spec.dimensions_w_x_d_x_h"
+            "feature.en.section-nv-dlss",
+            "fact.display"
           ]
         },
         {
@@ -182,10 +182,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.io",
-            "feature.zh.root",
-            "feature.zh.root",
-            "spec.adapter",
-            "fact.adapter"
+            "spec.io_port",
+            "spec.io_port",
+            "fact.io",
+            "spec.storage"
           ]
         },
         {
@@ -193,20 +193,20 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.wireless",
-            "feature.zh.root",
-            "spec.storage",
-            "feature.en.section-nv-dlss",
-            "feature.en.root"
+            "spec.communications",
+            "spec.communications",
+            "spec.io_port",
+            "feature.zh.root"
           ]
         },
         {
           "id": "en08",
-          "first_gold_rank": 2,
+          "first_gold_rank": 0,
           "retrieved": [
-            "fact.io",
-            "fact.io",
             "fact.wireless",
             "spec.communications",
+            "spec.communications",
+            "spec.io_port",
             "spec.io_port"
           ]
         },
@@ -214,22 +214,22 @@
           "id": "en09",
           "first_gold_rank": 0,
           "retrieved": [
-            "spec.storage",
-            "spec.storage",
-            "feature.en.root",
             "fact.storage",
-            "spec.weight"
+            "spec.storage",
+            "spec.storage",
+            "fact.memory",
+            "feature.en.root"
           ]
         },
         {
           "id": "en10",
           "first_gold_rank": 0,
           "retrieved": [
+            "fact.dimensions",
+            "spec.dimensions_w_x_d_x_h",
             "spec.dimensions_w_x_d_x_h",
             "spec.weight",
-            "feature.en.root",
-            "feature.en.root",
-            "spec.storage"
+            "spec.video_graphics"
           ]
         },
         {
@@ -239,8 +239,8 @@
             "spec.battery",
             "fact.battery",
             "feature.en.root",
-            "fact.battery",
-            "spec.weight"
+            "feature.zh.root",
+            "feature.zh.section-nv-maxq"
           ]
         },
         {
@@ -249,9 +249,9 @@
           "retrieved": [
             "fact.io",
             "fact.io",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root",
-            "feature.zh.root"
+            "spec.io_port",
+            "spec.io_port",
+            "spec.storage"
           ]
         },
         {
@@ -259,10 +259,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.wireless",
-            "feature.en.root",
-            "spec.weight",
             "spec.communications",
-            "fact.weight"
+            "spec.communications",
+            "feature.zh.root",
+            "feature.en.root"
           ]
         },
         {
@@ -270,10 +270,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.display",
+            "spec.display",
+            "spec.display",
             "fact.display",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root",
-            "feature.zh.root"
+            "spec.video_graphics"
           ]
         },
         {
@@ -282,31 +282,31 @@
           "retrieved": [
             "spec.system_memory",
             "spec.system_memory",
+            "spec.storage",
             "fact.memory",
-            "fact.memory",
-            "fact.gpu"
+            "spec.storage"
           ]
         },
         {
           "id": "rs01",
-          "first_gold_rank": null,
+          "first_gold_rank": 0,
           "retrieved": [
-            "feature.zh.root",
-            "fact.display",
-            "fact.display",
-            "feature.zh.root",
-            "feature.en.section-nv"
+            "spec.io_port",
+            "fact.io",
+            "spec.io_port",
+            "fact.io",
+            "spec.audio"
           ]
         },
         {
           "id": "rs02",
-          "first_gold_rank": null,
+          "first_gold_rank": 0,
           "retrieved": [
-            "fact.display",
-            "spec.battery",
-            "fact.display",
-            "fact.battery",
-            "feature.zh.root"
+            "spec.io_port",
+            "fact.io",
+            "fact.io",
+            "spec.io_port",
+            "spec.storage"
           ]
         },
         {
@@ -315,9 +315,9 @@
           "retrieved": [
             "fact.io",
             "fact.io",
-            "feature.en.root",
-            "spec.weight",
-            "spec.io_port"
+            "spec.io_port",
+            "spec.io_port",
+            "fact.adapter"
           ]
         },
         {
@@ -326,31 +326,31 @@
           "retrieved": [
             "spec.system_memory",
             "spec.system_memory",
-            "fact.memory",
-            "fact.memory",
-            "fact.gpu"
+            "spec.storage",
+            "spec.storage",
+            "fact.storage"
           ]
         },
         {
           "id": "rs05",
           "first_gold_rank": 0,
           "retrieved": [
-            "fact.storage",
+            "spec.storage",
             "fact.storage",
             "spec.storage",
-            "spec.storage",
-            "feature.en.root"
+            "fact.storage",
+            "spec.video_graphics"
           ]
         },
         {
           "id": "rs06",
           "first_gold_rank": 0,
           "retrieved": [
-            "fact.display",
-            "fact.display",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.section-nv",
-            "feature.zh.root"
+            "spec.display",
+            "feature.zh.root",
+            "feature.en.root",
+            "feature.zh.root",
+            "spec.display"
           ]
         }
       ]
@@ -364,7 +364,7 @@
         "@5": 1.0
       },
       "mrr": 0.9269,
-      "latency_ms_median": 0.138,
+      "latency_ms_median": 0.141,
       "per_question": [
         {
           "id": "zh01",
@@ -713,12 +713,12 @@
       "mode": "hybrid",
       "n_questions": 31,
       "recall": {
-        "@1": 0.871,
-        "@3": 0.9355,
-        "@5": 0.9355
+        "@1": 0.9677,
+        "@3": 1.0,
+        "@5": 1.0
       },
-      "mrr": 0.8978,
-      "latency_ms_median": 0.194,
+      "mrr": 0.9839,
+      "latency_ms_median": 22.806,
       "per_question": [
         {
           "id": "zh01",
@@ -727,7 +727,7 @@
             "fact.battery",
             "spec.battery",
             "fact.battery",
-            "fact.storage",
+            "fact.memory",
             "feature.zh.root"
           ]
         },
@@ -736,10 +736,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.display",
-            "feature.zh.root",
             "fact.display",
+            "feature.zh.root",
             "feature.zh.section-nv-dlss",
-            "feature.zh.root"
+            "spec.display"
           ]
         },
         {
@@ -748,9 +748,9 @@
           "retrieved": [
             "fact.display",
             "fact.display",
-            "feature.zh.section-nv-dlss",
             "feature.zh.root",
-            "feature.zh.root"
+            "spec.display",
+            "spec.display"
           ]
         },
         {
@@ -758,21 +758,21 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.cpu",
+            "spec.cpu",
             "fact.cpu",
             "feature.zh.root",
-            "feature.zh.root",
-            "spec.cpu"
+            "feature.zh.root"
           ]
         },
         {
           "id": "zh05",
-          "first_gold_rank": 2,
+          "first_gold_rank": 0,
           "retrieved": [
-            "spec.display",
+            "spec.video_graphics",
             "spec.display",
             "spec.video_graphics",
-            "spec.video_graphics",
-            "fact.gpu"
+            "fact.gpu",
+            "spec.display"
           ]
         },
         {
@@ -782,8 +782,8 @@
             "spec.system_memory",
             "spec.system_memory",
             "fact.memory",
-            "fact.memory",
-            "fact.gpu"
+            "fact.storage",
+            "fact.memory"
           ]
         },
         {
@@ -793,8 +793,8 @@
             "spec.adapter",
             "fact.adapter",
             "spec.display",
-            "feature.zh.root",
-            "spec.display"
+            "spec.video_graphics",
+            "feature.zh.root"
           ]
         },
         {
@@ -805,7 +805,7 @@
             "spec.weight",
             "spec.weight",
             "fact.color",
-            "feature.zh.section-nv-dlss"
+            "fact.dimensions"
           ]
         },
         {
@@ -825,9 +825,9 @@
           "retrieved": [
             "fact.keyboard",
             "spec.keyboard_type",
-            "feature.zh.root",
             "fact.keyboard",
-            "feature.zh.section-nv-dlss"
+            "feature.zh.root",
+            "feature.zh.root"
           ]
         },
         {
@@ -836,9 +836,9 @@
           "retrieved": [
             "fact.battery",
             "spec.weight",
-            "spec.dimensions_w_x_d_x_h",
             "feature.en.root",
-            "spec.storage"
+            "spec.dimensions_w_x_d_x_h",
+            "feature.en.root"
           ]
         },
         {
@@ -847,9 +847,9 @@
           "retrieved": [
             "fact.gpu",
             "spec.video_graphics",
-            "feature.en.root",
             "spec.video_graphics",
-            "fact.gpu"
+            "feature.en.root",
+            "feature.en.root"
           ]
         },
         {
@@ -857,21 +857,21 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.gpu",
-            "feature.en.root",
-            "feature.en.root",
             "spec.video_graphics",
-            "spec.weight"
+            "spec.video_graphics",
+            "spec.system_memory",
+            "fact.gpu"
           ]
         },
         {
           "id": "en04",
-          "first_gold_rank": 1,
+          "first_gold_rank": 0,
           "retrieved": [
-            "feature.en.root",
+            "fact.gpu",
+            "spec.video_graphics",
             "spec.video_graphics",
             "feature.en.root",
-            "feature.en.section-nv-maxq",
-            "spec.weight"
+            "feature.en.root"
           ]
         },
         {
@@ -879,7 +879,7 @@
           "first_gold_rank": 0,
           "retrieved": [
             "spec.display",
-            "spec.display",
+            "fact.display",
             "feature.en.root",
             "feature.en.root",
             "fact.display"
@@ -890,10 +890,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.io",
-            "feature.zh.root",
-            "feature.en.root",
+            "spec.io_port",
             "fact.io",
-            "feature.en.root"
+            "spec.io_port",
+            "feature.zh.root"
           ]
         },
         {
@@ -901,10 +901,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.wireless",
-            "feature.zh.root",
-            "spec.storage",
             "feature.en.root",
-            "feature.en.root"
+            "feature.zh.root",
+            "feature.en.root",
+            "feature.zh.root"
           ]
         },
         {
@@ -922,22 +922,22 @@
           "id": "en09",
           "first_gold_rank": 0,
           "retrieved": [
-            "spec.storage",
-            "spec.storage",
             "fact.storage",
-            "feature.en.section-nv-maxq",
-            "feature.en.root"
+            "spec.storage",
+            "spec.storage",
+            "fact.memory",
+            "fact.battery"
           ]
         },
         {
           "id": "en10",
           "first_gold_rank": 0,
           "retrieved": [
+            "fact.dimensions",
             "spec.dimensions_w_x_d_x_h",
             "spec.weight",
-            "feature.en.root",
-            "feature.en.root",
-            "fact.dimensions"
+            "spec.dimensions_w_x_d_x_h",
+            "feature.en.root"
           ]
         },
         {
@@ -946,9 +946,9 @@
           "retrieved": [
             "spec.battery",
             "fact.battery",
-            "fact.battery",
             "feature.zh.section-nv-maxq",
-            "spec.storage"
+            "fact.battery",
+            "feature.en.root"
           ]
         },
         {
@@ -958,8 +958,8 @@
             "fact.io",
             "fact.io",
             "spec.io_port",
-            "feature.en.root",
-            "feature.zh.root"
+            "spec.io_port",
+            "feature.en.root"
           ]
         },
         {
@@ -967,10 +967,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.wireless",
+            "spec.communications",
             "feature.en.root",
             "spec.communications",
-            "spec.communications",
-            "spec.io_port"
+            "feature.zh.root"
           ]
         },
         {
@@ -980,8 +980,8 @@
             "fact.display",
             "fact.display",
             "feature.zh.root",
-            "feature.zh.section-nv-dlss",
-            "feature.zh.root"
+            "feature.en.root",
+            "feature.zh.section-nv-dlss"
           ]
         },
         {
@@ -992,29 +992,29 @@
             "spec.system_memory",
             "fact.memory",
             "fact.memory",
-            "fact.gpu"
+            "spec.storage"
           ]
         },
         {
           "id": "rs01",
-          "first_gold_rank": null,
+          "first_gold_rank": 1,
           "retrieved": [
             "fact.display",
-            "feature.zh.root",
+            "spec.io_port",
+            "fact.io",
             "fact.display",
-            "feature.zh.root",
-            "feature.en.section-nv"
+            "spec.io_port"
           ]
         },
         {
           "id": "rs02",
-          "first_gold_rank": null,
+          "first_gold_rank": 0,
           "retrieved": [
+            "fact.io",
             "fact.display",
-            "fact.display",
-            "feature.zh.root",
-            "feature.zh.root",
-            "spec.battery"
+            "spec.io_port",
+            "fact.io",
+            "feature.zh.root"
           ]
         },
         {
@@ -1023,9 +1023,9 @@
           "retrieved": [
             "fact.io",
             "fact.io",
-            "spec.weight",
-            "feature.en.root",
-            "spec.io_port"
+            "spec.io_port",
+            "spec.io_port",
+            "feature.en.root"
           ]
         },
         {
@@ -1034,9 +1034,9 @@
           "retrieved": [
             "spec.system_memory",
             "spec.system_memory",
-            "fact.memory",
-            "fact.memory",
-            "fact.gpu"
+            "spec.storage",
+            "spec.storage",
+            "fact.memory"
           ]
         },
         {
@@ -1044,10 +1044,10 @@
           "first_gold_rank": 0,
           "retrieved": [
             "fact.storage",
+            "spec.storage",
             "fact.storage",
             "spec.storage",
-            "spec.storage",
-            "feature.en.root"
+            "feature.en.section-nv-dlss"
           ]
         },
         {
@@ -1056,8 +1056,8 @@
           "retrieved": [
             "fact.display",
             "fact.display",
-            "feature.zh.section-nv",
             "feature.zh.root",
+            "feature.en.root",
             "feature.zh.section-nv-dlss"
           ]
         }
