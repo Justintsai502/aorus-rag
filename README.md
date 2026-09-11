@@ -139,6 +139,23 @@ L2 fact       螢幕更新率 / Display refresh rate: 240Hz
 
 ### 4.5 Hybrid 檢索
 
+兩條檢索路線同時執行，再融合結果：
+
+| 路線 | 做法 | 擅長 |
+|---|---|---|
+| **Dense** | bge-m3 將問題轉為 1024 維向量，與 240 個 chunk 向量以 numpy 矩陣乘法計算 cosine | 語意相近、換句話說（「外接 4K 螢幕」↔「HDMI 2.1」） |
+| **BM25** | 中文切成單字 + 雙字（char bigram），英數保留完整 token（如 `usb3.2`），以 Okapi BM25 計分（k1=1.5, b=0.75） | 精確字串（「Thunderbolt 5」「99Wh」） |
+
+融合與後處理（`retrieve.py`）：
+
+1. **RRF 融合**：兩條路線各取前 25 名，以名次而非分數融合，`score = Σ 1/(60 + 名次)`，
+   不需讓 cosine 與 BM25 分數可比
+2. **Key boost**：問題字面包含 chunk 的鍵（如「螢幕更新率」）時分數 ×1.35
+3. **去重**：同一規格欄位最多取 2 塊，避免結果集中在單一欄位
+4. **保留各自第 1 名**：dense 與 BM25 各自的第 1 名一定出現在最終結果中
+
+檢索結果（40 題）：
+
 | retriever | Recall@1 | Recall@3 | MRR | 延遲 |
 |---|---|---|---|---|
 | dense (bge-m3) | 0.914 | 0.971 | 0.950 | 17.2 ms |
@@ -211,32 +228,7 @@ prefill 是整段 prompt 的 GEMM，decode 是每 token 一次 GEMV。
 top-8 時多出的 context 包含特色頁的模糊敘述（「Ultra 200HX 系列」），
 與規格表的「Ultra 9 275HX」競爭。top-k 曲線先上升、飽和、再下降，預設取 5。
 
-**(b) RAG vs no-RAG**（同模型，唯一差別是有沒有 context）
-
-| 條件 | 關鍵字正確率 | negative 拒答率 | 數字接地 |
-|---|---|---|---|
-| **RAG (top-5)** | **96.8%** | **100%** | **100%** |
-| no-RAG（同模型、無 context） | 29.0% | **0%** | **0%** |
-
-AM6H 是 2025 年新品，模型預訓練資料不包含它：
-
-```
-Q: 這台筆電的電池容量是多少？
-   RAG    : 電池容量是 99Wh [1]。
-   no-RAG : ...電池容量為 95Wh。
-
-Q: 顯示卡是哪一張？
-   RAG    : NVIDIA® GeForce RTX™ 5090 Laptop GPU [3]。
-   no-RAG : ...是 NVIDIA GeForce RTX 3080。
-
-Q: 這台筆電支援 5G 行動網路嗎？
-   RAG    : 提供的規格資料中沒有這項資訊。
-   no-RAG : 不支援，因為它是一款筆電，通常不具備外接 5G 設備的插槽或連接埠。
-```
-
-no-RAG 的 negative 拒答率為 0%；RAG 讓模型在資料不足時明確回答「沒有這項資訊」。
-
-**(c) TPS 對照理論上限**
+**(b) TPS 對照理論上限**
 
 decode 為 memory-bandwidth bound：`M2 頻寬 100 GB/s ÷ 模型 1.11 GB ≈ 90 tok/s`，
 實測 61.7 tok/s，達理論值 69%。
