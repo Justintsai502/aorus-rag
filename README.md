@@ -241,16 +241,7 @@ no-RAG 的 negative 拒答率為 0%；RAG 讓模型在資料不足時明確回�
 decode 為 memory-bandwidth bound：`M2 頻寬 100 GB/s ÷ 模型 1.11 GB ≈ 90 tok/s`，
 實測 61.7 tok/s，達理論值 69%。
 
-## 6. 已知限制
-
-1. 模型對照為兩顆（1.7B、3B）；4B 與其他量化等級（Q5_K_M / Q8_0）未測。
-2. 關鍵字命中無法判斷答案是否完全正確（例：rs06 答出色域 `DCIP-3 100%` 而非 HDR 等級，仍計為命中）。
-3. 未採用 LLM-as-judge，以可重現的自動指標為主。
-4. SKU 題的正解部分排在第 3–5 名，依賴 `top_k = 5`。
-5. 評測集為自行撰寫。
-6. 生成評測為 36 題核心集，不含 SKU 題。
-
-## 7. 專案結構
+## 6. 專案結構
 
 ```
 pyproject.toml / uv.lock / .python-version   uv 環境（lock 已 commit）
