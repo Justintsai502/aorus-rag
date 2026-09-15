@@ -26,12 +26,15 @@ from .config import EMBEDDING_MODELS, MODELS_DIR, ModelSpec
 
 # E5-family models are trained with asymmetric prefixes; omitting them costs a
 # few points of recall. BGE-M3 needs none.
+# Format: (query prefix, passage prefix).
 PREFIXES: dict[str, tuple[str, str]] = {
     "e5-small": ("query: ", "passage: "),
     "bge-m3": ("", ""),
 }
 
 
+# Structural typing: any class with name, dim and encode() is an Embedder,
+# no inheritance required.
 class Embedder(Protocol):
     name: str
     dim: int
@@ -55,17 +58,24 @@ class HashingEmbedder:
         self.dim = dim
 
     def _vector(self, text: str) -> np.ndarray:
+        # Same tokenizer as BM25, so both lexical paths agree on what a token is.
         from .index import tokenize
 
         vec = np.zeros(self.dim, dtype=np.float32)
         for token in tokenize(text):
+            # Feature hashing: h % dim picks the dimension and the top bit of h picks the
+            # sign, so collisions tend to cancel out instead of piling up.
             digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
+            # 8 digest bytes -> a 64-bit unsigned integer; bit 63 is its top bit.
             h = int.from_bytes(digest, "little")
             vec[h % self.dim] += 1.0 if (h >> 63) & 1 else -1.0
         norm = float(np.linalg.norm(vec))
+        # Unit length, so a dot product equals cosine similarity.
         return vec / norm if norm else vec
 
     def encode(self, texts: Sequence[str], is_query: bool = False) -> np.ndarray:
+        # One row per text. Empty input still returns a (0, dim) array, so callers can
+        # rely on the shape.
         return np.stack([self._vector(t) for t in texts]) if texts else np.zeros((0, self.dim))
 
 
@@ -99,6 +109,7 @@ class LlamaCppEmbedder:
                 "  uv run aorus-rag build --embed-model hashing"
             ) from exc
 
+        # Default location is models/<filename>, where scripts/download_models.sh saves it.
         path = model_path or (MODELS_DIR / spec.filename)
         if not path.exists():
             raise FileNotFoundError(
@@ -108,6 +119,8 @@ class LlamaCppEmbedder:
                 "                uv run aorus-rag build --embed-model hashing"
             )
 
+        # Pooling collapses per-token vectors into one vector per text; bge-m3 uses CLS.
+        # getattr keeps this working across llama-cpp-python versions.
         pooling = {
             "mean": getattr(llama_cpp, "LLAMA_POOLING_TYPE_MEAN", 1),
             "cls": getattr(llama_cpp, "LLAMA_POOLING_TYPE_CLS", 2),
@@ -117,13 +130,17 @@ class LlamaCppEmbedder:
         self.name = spec.name
         self._llama = llama_cpp.Llama(
             model_path=str(path),
+            # Embedding mode: this instance returns vectors and never generates text.
             embedding=True,
+            # Maximum input length for one embedding; every chunk here is far shorter.
             n_ctx=spec.n_ctx,
+            # 0 by default: CPU only, so VRAM stays reserved for the generation model.
             n_gpu_layers=n_gpu_layers,
             pooling_type=pooling,
             n_threads=n_threads,
             verbose=verbose,
         )
+        # Read the output dimension from the model instead of hard-coding it (1024 for bge-m3).
         probe = self._llama.create_embedding("dimension probe")
         self.dim = len(self._to_vector(probe["data"][0]["embedding"]))
 
@@ -138,9 +155,12 @@ class LlamaCppEmbedder:
     def encode(self, texts: Sequence[str], is_query: bool = False) -> np.ndarray:
         if not texts:
             return np.zeros((0, self.dim), dtype=np.float32)
+        # Models trained with asymmetric prefixes (E5) get different prefixes for queries
+        # and passages; models not listed get none.
         q_prefix, p_prefix = PREFIXES.get(self.spec.name, ("", ""))
         prefix = q_prefix if is_query else p_prefix
         payload = [prefix + t for t in texts]
+        # Encode the whole batch in one call.
         response = self._llama.create_embedding(payload)
         return np.stack([self._to_vector(row["embedding"]) for row in response["data"]])
 
@@ -150,6 +170,7 @@ class LlamaCppEmbedder:
 
 def build_embedder(name: str, n_gpu_layers: int = 0, verbose: bool = False) -> Embedder:
     """Resolve an embedder by name, falling back to hashing when asked."""
+    # No model download -- this is what the tests use.
     if name in ("hash", "hashing", "none"):
         return HashingEmbedder()
     spec = EMBEDDING_MODELS.get(name)

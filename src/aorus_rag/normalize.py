@@ -27,12 +27,16 @@ from .parse import SpecItem
 class Fact:
     """One atomic, self-contained spec fact."""
 
+    # A fact is a single value pulled from a spec row, e.g. battery.capacity = 99Wh.
+    #   label_zh / label_en  hand-written bilingual labels; they become the chunk anchor
+    #   source_key_*         the spec row the fact came from
     fact_id: str
     label_zh: str
     label_en: str
     value: str
     source_key_zh: str = ""
     source_key_en: str = ""
+    # Structured data for port facts (side, count); copied into the chunk's meta.
     extra: dict = field(default_factory=dict)
 
 
@@ -41,8 +45,11 @@ class Fact:
 # formatter). The pattern runs over the joined value text of that spec row.
 # --------------------------------------------------------------------------
 
+# Rules are declarative: a new fact type is one more tuple, not a new function.
 Rule = tuple[str, str, str, str, str, str]
 
+# Patterns run against the English page's values (identical to the zh values).
+# In a template, \1 is the text captured by the pattern's first group.
 RULES: list[Rule] = [
     # fact_id, spec key (EN), zh label, en label, regex, output template
     (
@@ -50,6 +57,8 @@ RULES: list[Rule] = [
         "CPU",
         "處理器型號",
         "CPU model",
+        # The processor name up to its model number (e.g. ... 275HX); the non-greedy
+        # [^()]*? cannot run past a parenthesis.
         r"(Intel[^()]*?Ultra\s+\d+\s+Processor\s+\w+)",
         r"\1",
     ),
@@ -69,6 +78,7 @@ RULES: list[Rule] = [
         "Video Graphics",
         "顯示晶片型號",
         "GPU model",
+        # [^\n]*? keeps the whole match on a single line of the row.
         r"(NVIDIA[^\n]*?GeForce RTX[^\n]*?Laptop GPU)",
         r"\1",
     ),
@@ -89,6 +99,7 @@ RULES: list[Rule] = [
         r"AI Boost\s*:\s*(\d+ MHz)",
         r"\1 (AI Boost)",
     ),
+    # The inch mark (") is rewritten as "inch" so the value reads naturally.
     ("display.size", "Display", "螢幕尺寸", "Display size", r'(\d+)"', r"\1 inch"),
     ("display.aspect_ratio", "Display", "螢幕比例", "Display aspect ratio", r"(\d+:\d+)\b", r"\1"),
     (
@@ -104,6 +115,7 @@ RULES: list[Rule] = [
         "Display",
         "螢幕解析度",
         "Display resolution",
+        # Resolution in parentheses, e.g. (2560x1600); both "x" and "×" are accepted.
         r"\((\d{3,4}\s*[x×]\s*\d{3,4})\)",
         r"\1",
     ),
@@ -129,6 +141,7 @@ RULES: list[Rule] = [
         "Display",
         "螢幕亮度",
         "Display brightness",
+        # Peak brightness specifically, marked "(peak)" on the page.
         r"(\d+)nits \(peak\)",
         r"\1 nits (peak)",
     ),
@@ -137,6 +150,8 @@ RULES: list[Rule] = [
         "Display",
         "對比度",
         "Display contrast ratio",
+        # Requiring thousands separators stops the 16:10 aspect ratio from being read as a
+        # 16:1 contrast ratio (covered by a test).
         r"(\d{1,3}(?:,\d{3})+:1)",
         r"\1",
     ),
@@ -145,6 +160,7 @@ RULES: list[Rule] = [
         "System Memory",
         "最大記憶體容量",
         "Maximum system memory",
+        # Maximum supported capacity ("Up to ..."), not the installed amount.
         r"Up to (\d+GB)",
         r"\1",
     ),
@@ -219,10 +235,12 @@ RULES: list[Rule] = [
         "Dimensions (W x D x H)",
         "機身尺寸",
         "Dimensions",
+        # Width x depth x height; the height allows "~" for a thickness range.
         r"([\d.]+ x [\d.]+ x [\d.~]+ mm)",
         r"\1",
     ),
     ("weight.kg", "Weight", "機身重量", "Weight", r"~?([\d.]+ kg)", r"\1"),
+    # ^(.+)$ with re.MULTILINE takes the first line of the colour row.
     ("color.name", "Color", "機身顏色", "Colour", r"^(.+)$", r"\1"),
 ]
 
@@ -233,6 +251,8 @@ RULES: list[Rule] = [
 # that a flat text chunk answers badly.
 # --------------------------------------------------------------------------
 
+# _SIDE_RE matches section headers like "Left Side:"; _PORT_RE splits
+# "2 x USB Type-C ..." into a count and a description.
 _SIDE_RE = re.compile(r"^(Left|Right)\s+Side:", re.IGNORECASE)
 _PORT_RE = re.compile(r"^(\d+)\s*x\s*(.+)$")
 
@@ -241,6 +261,7 @@ SIDE_ZH = {"Left": "左側", "Right": "右側"}
 
 @dataclass
 class Port:
+    # One port line from the I/O row: which side it is on, how many, and what it is.
     side: str
     count: int
     description: str
@@ -249,6 +270,8 @@ class Port:
 def parse_ports(item: SpecItem) -> list[Port]:
     """Split the I/O row into side-tagged port entries."""
     ports: list[Port] = []
+    # Walk the lines: a side header updates the current side, a port line is recorded
+    # under it.
     side = "Unknown"
     for line in item.lines:
         m = _SIDE_RE.match(line)
@@ -262,6 +285,10 @@ def parse_ports(item: SpecItem) -> list[Port]:
 
 
 def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
+    # The I/O row yields three kinds of fact:
+    #   io.port.N    one per port, with its side
+    #   io.count.*   totals per port type (USB-C, USB-A, Thunderbolt, HDMI)
+    #   io.side.*    which side the notable ports are on
     ports = parse_ports(item_en)
     facts: list[Fact] = []
 
@@ -269,6 +296,8 @@ def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
         side_zh = SIDE_ZH.get(port.side, port.side)
         facts.append(
             Fact(
+                # The label carries the side in both languages, so a question about the ports on
+                # the left side matches in either language.
                 fact_id=f"io.port.{i}",
                 label_zh=f"連接埠（{side_zh}）",
                 label_en=f"I/O port ({port.side} side)",
@@ -281,9 +310,11 @@ def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
 
     # Aggregate counts -- "how many USB-C ports does it have?" should not
     # require the model to count list items itself.
+    # ``pred`` tests a port description, e.g. lambda d: "Type-C" in d.
     def total(pred) -> int:
         return sum(p.count for p in ports if pred(p.description))
 
+    # (fact_id, zh label, en label, count); types with a zero count are skipped below.
     aggregates = [
         (
             "io.count.usb_c",
@@ -319,6 +350,7 @@ def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
             )
 
     # Side lookup for the marquee ports.
+    # Only the first port whose description contains the keyword is used.
     for keyword, zh, en in [
         ("Thunderbolt™5", "Thunderbolt 5 位置", "Thunderbolt 5 location"),
         ("Thunderbolt™4", "Thunderbolt 4 位置", "Thunderbolt 4 location"),
@@ -330,6 +362,7 @@ def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
         if match:
             facts.append(
                 Fact(
+                    # e.g. "Thunderbolt™5" -> io.side.thunderbolt5
                     fact_id=f"io.side.{keyword.lower().replace('™', '').replace('-', '')}",
                     label_zh=zh,
                     label_en=en,
@@ -347,11 +380,14 @@ def _port_facts(item_zh: SpecItem, item_en: SpecItem) -> list[Fact]:
 
 def extract_facts(zh_items: list[SpecItem], en_items: list[SpecItem]) -> list[Fact]:
     """Run every rule and return the facts that actually matched."""
+    # Rows are paired by position, so both tables must have the same length.
     if len(zh_items) != len(en_items):
         raise ValueError("zh/en spec tables have different row counts")
 
+    # Rules are keyed by English field name; carry the matching zh row alongside.
     by_en_key = {en.key: (zh, en) for zh, en in zip(zh_items, en_items)}
     facts: list[Fact] = []
+    # Each fact_id is emitted at most once.
     seen: set[str] = set()
 
     for fact_id, key, label_zh, label_en, pattern, template in RULES:
@@ -360,9 +396,11 @@ def extract_facts(zh_items: list[SpecItem], en_items: list[SpecItem]) -> list[Fa
             continue
         zh_item, en_item = pair
         text = en_item.value
+        # First match only; a rule that does not match is simply skipped.
         m = re.search(pattern, text, re.MULTILINE)
         if not m:
             continue
+        # expand() substitutes the captured groups into the template.
         value = m.expand(template).strip()
         if not value or fact_id in seen:
             continue
@@ -378,6 +416,7 @@ def extract_facts(zh_items: list[SpecItem], en_items: list[SpecItem]) -> list[Fa
             )
         )
 
+    # The I/O row is side-structured, so it gets its own extractor.
     io_pair = by_en_key.get("I/O Port")
     if io_pair:
         facts.extend(_port_facts(*io_pair))

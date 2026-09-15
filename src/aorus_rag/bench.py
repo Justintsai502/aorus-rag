@@ -38,6 +38,7 @@ from .retrieve import Retriever
 _CITATION = re.compile(r"\[\d+\]")
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 
+# An answer containing any of these phrases counts as a refusal.
 REFUSAL_MARKERS = (
     "沒有這項資訊",
     "沒有提到",
@@ -62,7 +63,12 @@ class EvalQuestion:
     question: str
     lang: str
     type: str
+    # type          question category; "negative" means the answer is not in the data
+    # gold_docs     doc_ids holding the answer (for Recall / MRR)
+    # must_include  strings the answer must contain (for keyword accuracy)
     gold_docs: list[str] = field(default_factory=list)
+    # Entries are strings (each must appear) or lists (any one member is enough);
+    # see keyword_hit.
     must_include: list = field(default_factory=list)
     must_refuse: bool = False
 
@@ -71,6 +77,7 @@ def load_questions(path: Path = QA_PATH) -> list[EvalQuestion]:
     if not path.exists():
         raise FileNotFoundError(f"{path} is missing")
     with path.open(encoding="utf-8") as fh:
+        # One question per JSONL line; keys map directly onto EvalQuestion's fields.
         return [EvalQuestion(**json.loads(line)) for line in fh if line.strip()]
 
 
@@ -86,6 +93,7 @@ def evaluate_retrieval(
 ) -> dict:
     """Doc-level recall@k and MRR. Negative questions have no gold, so they are
     excluded here -- they are scored on refusal behaviour instead."""
+    # Negative questions have no gold documents, so they are excluded here.
     scored = [q for q in questions if q.gold_docs]
     max_k = max(ks)
     hits_at = {k: 0 for k in ks}
@@ -95,10 +103,15 @@ def evaluate_retrieval(
     per_question = []
     for q in scored:
         t0 = time.perf_counter()
+        # Retrieve once at the largest k; each smaller k is a prefix of the same list.
         results = retriever.search(q.question, top_k=max_k)
         latencies.append((time.perf_counter() - t0) * 1000)
+        # Scored at doc level: any chunk from a gold row counts, whatever its granularity.
         docs = [h.chunk.doc_id for h in results]
         gold = set(q.gold_docs)
+        # 0-based rank of the first gold document:
+        #   Recall@k  hit if first < k
+        #   MRR       1 / (first + 1): rank 1 scores 1, rank 2 scores 0.5, not found scores 0
         first = next((i for i, d in enumerate(docs) if d in gold), None)
         for k in ks:
             if first is not None and first < k:
@@ -124,6 +137,7 @@ def evaluate_retrieval(
 
 def is_refusal(answer: str) -> bool:
     lowered = answer.lower()
+    # Case-insensitive substring match against every marker.
     return any(m.lower() in lowered for m in REFUSAL_MARKERS)
 
 
@@ -143,6 +157,7 @@ def keyword_hit(answer: str, must_include: list) -> bool:
         return True
     lowered = answer.lower()
     for term in must_include:
+        # A list is an alternatives group (any member satisfies it); a string must appear itself.
         if isinstance(term, list):
             if not any(t.lower() in lowered for t in term):
                 return False
@@ -153,10 +168,14 @@ def keyword_hit(answer: str, must_include: list) -> bool:
 
 def number_grounding(answer: str, context: str) -> tuple[int, int]:
     """(grounded, total) numbers appearing in the answer."""
+    # Drop citation markers, then check every remaining number against the context.
+    # A number absent from the context was invented by the model.
     body = _CITATION.sub(" ", answer)
     numbers = _NUMBER.findall(body)
     if not numbers:
         return (0, 0)
+    # A number is grounded if the context contains it verbatim or with thousands
+    # separators removed (1,000,000 vs 1000000).
     grounded = sum(
         1 for n in numbers if n in context or n.replace(",", "") in context.replace(",", "")
     )
@@ -174,6 +193,7 @@ def evaluate_generation(
     """Run every question ``repeats`` times, reporting medians."""
     from .prompt import render_context
 
+    # The first inference is typically slow (one-off initialisation), so it is not timed.
     if warmup and questions:
         pipeline.answer(questions[0].question, top_k=top_k, use_rag=use_rag)
 
@@ -186,8 +206,10 @@ def evaluate_generation(
             result = pipeline.answer(q.question, top_k=top_k, use_rag=use_rag)
             runs.append(result)
             answer = result.answer
+            # Rebuild the exact reference text the model saw, for number grounding.
             context = render_context(result.hits)
 
+        # Medians over ``repeats`` runs damp run-to-run jitter.
         ttft = statistics.median(r.ttft_s for r in runs)
         ttft_answer = statistics.median(r.retrieval_s + r.stats.ttft_answer_s for r in runs)
         thinking = statistics.median(r.stats.thinking_tokens for r in runs)
@@ -201,6 +223,7 @@ def evaluate_generation(
         # numbers it was only musing about as hallucinations.
         visible = strip_thinking(answer)
         grounded, total_numbers = number_grounding(visible, context)
+        # One row per question; raw_answer is kept only when stripping changed the text.
         rows.append(
             {
                 "id": q.id,
@@ -224,11 +247,14 @@ def evaluate_generation(
             }
         )
 
+    # Keyword accuracy, false refusals and grounding are scored on answerable
+    # questions; refusal rate on negatives only.
     answerable = [r for r in rows if r["type"] != "negative"]
     negatives = [r for r in rows if r["type"] == "negative"]
     num_total = sum(r["numbers_total"] for r in answerable)
     num_grounded = sum(r["numbers_grounded"] for r in answerable)
 
+    # Zero values are skipped (e.g. thinking_tokens is 0 when there is no think block).
     def med(key: str) -> float:
         vals = [r[key] for r in rows if r[key]]
         return round(statistics.median(vals), 4) if vals else 0.0
@@ -249,6 +275,7 @@ def evaluate_generation(
         "false_refusal_rate": round(sum(r["refused"] for r in answerable) / len(answerable), 4)
         if answerable
         else 0.0,
+        # An answer set with no numbers at all counts as fully grounded: nothing was invented.
         "number_grounding": round(num_grounded / num_total, 4) if num_total else 1.0,
         "ttft_s_median": med("ttft_s"),
         "ttft_answer_s_median": med("ttft_answer_s"),
@@ -262,5 +289,6 @@ def evaluate_generation(
 
 def save_results(payload: dict, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Pretty-printed UTF-8 JSON under results/.
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path

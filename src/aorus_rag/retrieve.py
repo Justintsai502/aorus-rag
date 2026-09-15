@@ -15,15 +15,19 @@ from .chunk import Chunk
 from .embed import Embedder
 from .index import BM25Index, IndexBundle, VectorIndex, rrf_fuse, tokenize
 
+# dense = vectors only, bm25 = lexical only, hybrid = both fused with RRF (default).
 MODES = ("dense", "bm25", "hybrid")
 
 # Chunks are three-level; when several chunks of the same spec row survive, we
 # prefer the precise ones. Lower sorts first.
+# Kinds not listed (sku) fall back to 9 and sort last on ties.
 KIND_PRIORITY = {"fact": 0, "spec_line": 1, "spec_row": 2, "feature": 3, "footnote": 4}
 
 
 @dataclass
 class Hit:
+    # dense_rank / bm25_rank are the positions in each arm's candidate list (None if
+    # absent) -- kept for debugging which retriever found a hit.
     chunk: Chunk
     score: float
     rank: int
@@ -32,6 +36,8 @@ class Hit:
 
 
 def _normalise_key(text: str) -> str:
+    # Strip whitespace, slashes and ASCII / fullwidth parentheses, lowercase, so
+    # "螢幕 更新率" and "螢幕更新率" compare equal.
     return re.sub(r"[\s/()（）]+", "", text).lower()
 
 
@@ -55,20 +61,28 @@ class Retriever:
         self.max_per_doc = max_per_doc
         self.embedder = embedder
 
+        # BM25 is rebuilt at startup (milliseconds for 240 chunks); vectors are loaded
+        # from index.npz rather than re-embedded.
         self.bm25 = BM25Index([tokenize(c.text) for c in chunks])
+        # No bundle (BM25-only mode) means no vector index.
         self.vector: VectorIndex | None = None
         if bundle is not None:
             if len(bundle.chunk_ids) != len(chunks):
                 raise ValueError("index/corpus mismatch: rebuild with `uv run aorus-rag build`")
             self.vector = VectorIndex(bundle.embeddings)
 
+        # Normalised keys per chunk, precomputed for the key boost.
         self._keys = [(_normalise_key(c.key_zh), _normalise_key(c.key_en)) for c in chunks]
 
     # ----------------------------------------------------------------
 
     def _dense(self, query: str, pool: int) -> list[tuple[int, float]]:
+        # Without vectors or an embedder, dense contributes an empty list and search()
+        # degrades to BM25.
         if self.vector is None or self.embedder is None:
             return []
+        # Query encoding is nearly all of dense retrieval's ~17 ms; the matrix product is
+        # negligible.
         vec = self.embedder.encode([query], is_query=True)[0]
         return self.vector.search(vec, top_k=pool)
 
@@ -81,15 +95,20 @@ class Retriever:
         stronger signal than any similarity score, and it costs one substring
         test per candidate.
         """
+        # key_boost=0 disables the boost, e.g. for an ablation run.
         if self.key_boost <= 0:
             return fused
+        # Normalise the question exactly like the keys before the substring test.
         q = _normalise_key(query)
         boosted = []
         for idx, score in fused:
             key_zh, key_en = self._keys[idx]
+            # Minimum key length (2 CJK chars / 3 Latin chars) avoids spurious matches on
+            # very short keys.
             hit = (key_zh and len(key_zh) >= 2 and key_zh in q) or (
                 key_en and len(key_en) >= 3 and key_en in q
             )
+            # A match multiplies the score by 1 + key_boost (x1.35 by default).
             boosted.append((idx, score * (1 + self.key_boost) if hit else score))
         return sorted(boosted, key=lambda kv: -kv[1])
 
@@ -114,16 +133,25 @@ class Retriever:
         results. Displacing the tail keeps RRF's ordering intact and only
         changes whether a hit is present at all.
         """
+        # Steps:
+        #   1. find each arm's #1 hit that is missing from the selection
+        #   2. free slots at the tail of the selection
+        #   3. append the missing hits just below the lowest score, so RRF's ordering of
+        #      everything else is unchanged
         present = {i for i, _ in selected}
+        # r[0][0] is the chunk index of that ranking's top hit. Empty rankings (dense in
+        # bm25 mode, for instance) are skipped.
         missing = [r[0][0] for r in rankings if r and r[0][0] not in present]
         if not missing:
             return selected
         floor = selected[-1][1] if selected else 0.0
         keep = selected[: max(0, top_k - len(missing))]
+        # dict.fromkeys de-duplicates while keeping order (both arms may share a #1).
         return keep + [(i, floor * 0.99) for i in dict.fromkeys(missing)][: top_k - len(keep)]
 
     def _diversify(self, ranked: list[tuple[int, float]], top_k: int) -> list[tuple[int, float]]:
         """Cap chunks per source row so the context is not five views of one row."""
+        # Walks the ranking in order, so the chunks kept for each row are its best-ranked ones.
         per_doc: dict[str, int] = {}
         out: list[tuple[int, float]] = []
         for idx, score in ranked:
@@ -139,9 +167,18 @@ class Retriever:
     # ----------------------------------------------------------------
 
     def search(self, query: str, top_k: int = 4, pool: int = 25) -> list[Hit]:
+        # Pipeline:
+        #   1. dense and BM25 each return their top ``pool`` candidates
+        #   2. hybrid fuses the two rankings with RRF
+        #   3. key boost for chunks whose field name appears in the question
+        #   4. sort, breaking ties towards more precise chunk kinds
+        #   5. diversify: at most max_per_doc chunks per source row
+        #   6. rescue each arm's #1 hit if fusion dropped it
         dense = self._dense(query, pool) if self.mode in ("dense", "hybrid") else []
         sparse = self.bm25.search(query, top_k=pool) if self.mode in ("bm25", "hybrid") else []
 
+        # Single-arm modes keep that arm's own scores (cosine or BM25). Only hybrid needs
+        # fusion, because the two score scales are not comparable.
         if self.mode == "dense":
             fused = [(i, s) for i, s in dense]
         elif self.mode == "bm25":
@@ -158,6 +195,7 @@ class Retriever:
         selected = self._diversify(fused, top_k)
         selected = self._rescue_top_hits(selected, [dense, sparse], top_k)
 
+        # Per-arm ranks, printed by `aorus-rag search`.
         dense_rank = {i: r for r, (i, _) in enumerate(dense)}
         bm25_rank = {i: r for r, (i, _) in enumerate(sparse)}
         return [
@@ -175,7 +213,9 @@ class Retriever:
 def embed_corpus(chunks: list[Chunk], embedder: Embedder) -> IndexBundle:
     """Encode every chunk once, offline. Batched -- see index.search_batch."""
     texts = [c.text for c in chunks]
+    # Passage-side encoding, done once at build time.
     matrix = embedder.encode(texts, is_query=False)
+    # float32 halves storage versus float64 with no practical effect on cosine ranking.
     matrix = np.asarray(matrix, dtype=np.float32)
     return IndexBundle(
         chunk_ids=[c.chunk_id for c in chunks],

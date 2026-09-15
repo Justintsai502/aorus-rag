@@ -5,12 +5,14 @@ from __future__ import annotations
 from aorus_rag.bench import is_refusal, keyword_hit, number_grounding
 
 
+# Refusals are recognised in both languages; a normal answer is not one.
 def test_refusal_detection_both_languages():
     assert is_refusal("提供的規格資料中沒有這項資訊。")
     assert is_refusal("That information is not in the provided specifications.")
     assert not is_refusal("電池容量是 99Wh [1]。")
 
 
+# Plain strings: every one must appear.
 def test_keyword_hit_requires_every_term():
     assert keyword_hit("解析度是 2560 x 1600", ["2560", "1600"])
     assert not keyword_hit("解析度是 2560", ["2560", "1600"])
@@ -24,11 +26,13 @@ def test_keyword_hit_accepts_alternatives_group():
 
 
 def test_keyword_hit_mixes_required_and_alternatives():
+    # Both groups must be satisfied; any member of a group satisfies it.
     spec = [["SO-DIMM", "記憶體"], ["M.2", "SSD"]]
     assert keyword_hit("可以加裝記憶體，也可以加第二顆 SSD [1]。", spec)
     assert not keyword_hit("可以加裝記憶體 [1]。", spec)
 
 
+# A number in the answer that is not in the context is a hallucination.
 def test_number_grounding_flags_invented_numbers():
     context = "[1] 電池容量 / Battery capacity: 99Wh"
     grounded, total = number_grounding("電池是 99Wh [1]", context)

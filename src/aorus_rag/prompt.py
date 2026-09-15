@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from .retrieve import Hit
 
+# CJK Unified Ideographs (plus extension A and compatibility ideographs).
 _CJK_RE = re.compile(r"[㐀-䶿一-鿿豈-﫿]")
 
 
@@ -24,12 +25,15 @@ def detect_language(text: str) -> str:
     of Chinese nouns dropped into an English sentence should still get an
     English answer.
     """
+    # Pure English -> en, pure Chinese -> zh; only mixed text needs the ratio below.
     cjk = len(_CJK_RE.findall(text))
     letters = len(re.findall(r"[A-Za-z]", text))
     if cjk == 0:
         return "en"
     if letters == 0:
         return "zh"
+    # One CJK character carries roughly as much as several Latin letters, hence the
+    # factor of 2. e.g. "這台的 refresh rate 是多少": 6 CJK x 2 = 12 >= 11 letters -> zh.
     return "zh" if cjk * 2 >= letters else "en"
 
 
@@ -42,6 +46,12 @@ def detect_language(text: str) -> str:
 # combine facts". Hence the explicit permission to combine, the explicit ban on
 # citation-only replies, and the two worked examples: one answerable, one not.
 
+# What each rule is for:
+#   combine entries       -> lets a small model answer cross-field questions
+#   fixed refusal phrase  -> refusals can be detected by string match in the benchmark
+#   quote verbatim        -> no unit conversion or rounding
+#   no citation-only reply -> fixes answers that were just "[1]"
+# The two examples (one answerable, one not) demonstrate both behaviours few-shot.
 SYSTEM_ZH = """你是 GIGABYTE AORUS MASTER 16 AM6H 的規格查詢助理。
 
 作答規則：
@@ -61,6 +71,8 @@ SYSTEM_ZH = """你是 GIGABYTE AORUS MASTER 16 AM6H 的規格查詢助理。
 問題：這台有幾種顏色？
 提供的規格資料中沒有這項資訊。"""
 
+# English counterpart with the same rules and examples, so behaviour does not
+# depend on the language the question was asked in.
 SYSTEM_EN = """You are a spec assistant for the GIGABYTE AORUS MASTER 16 AM6H laptop.
 
 Rules:
@@ -83,12 +95,16 @@ Reference: [1] Battery capacity: 99Wh
 Question: How many colours does it come in?
 That information is not in the provided specifications."""
 
+# Same wording as the system prompt examples, so the model sees exactly the
+# structure it was shown.
 REFERENCE_HEADER = {"zh": "參考資料：", "en": "Reference:"}
 QUESTION_HEADER = {"zh": "問題：", "en": "Question:"}
 
 
 @dataclass
 class BuiltPrompt:
+    # used_hits may be shorter than the retrieved hits if the context was trimmed;
+    # context_chars is reported by the benchmark.
     system: str
     user: str
     used_hits: list[Hit]
@@ -96,6 +112,7 @@ class BuiltPrompt:
 
 
 def render_context(hits: list[Hit]) -> str:
+    # Numbered [1], [2], ... so the model can cite its source.
     return "\n".join(f"[{i + 1}] {h.chunk.context_line()}" for i, h in enumerate(hits))
 
 
@@ -111,19 +128,30 @@ def build_prompt(
     chunk is the cheapest thing to lose.
     """
     lang = lang or detect_language(question)
+    # The pipeline passes lang in; detecting it here as well keeps the function usable
+    # on its own.
     system = SYSTEM_ZH if lang == "zh" else SYSTEM_EN
 
+    # Copy so trimming does not modify the caller's list, then drop hits from the tail
+    # until the rendered context fits in max_context_chars (2400 by default).
     used = list(hits)
     while used and len(render_context(used)) > max_context_chars:
         used.pop()
 
     context = render_context(used)
+    # User message layout:
+    #   Reference:
+    #   [1] ...
+    #   [2] ...
+    #
+    #   Question: ...
     user = f"{REFERENCE_HEADER[lang]}\n{context}\n\n{QUESTION_HEADER[lang]}{question}"
     return BuiltPrompt(system=system, user=user, used_hits=used, context_chars=len(context))
 
 
 def to_messages(prompt: BuiltPrompt) -> list[dict[str, str]]:
     return [
+        # llama.cpp renders these through the model's own chat template.
         {"role": "system", "content": prompt.system},
         {"role": "user", "content": prompt.user},
     ]
@@ -142,6 +170,7 @@ NO_RAG_SYSTEM = {
 def build_no_rag_messages(question: str, lang: str | None = None) -> list[dict[str, str]]:
     lang = lang or detect_language(question)
     return [
+        # No reference section and no refusal rule: this measures what the model knows on its own.
         {"role": "system", "content": NO_RAG_SYSTEM[lang]},
         {"role": "user", "content": question},
     ]

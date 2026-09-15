@@ -38,6 +38,7 @@ from .retrieve import Retriever
 # --------------------------------------------------------------------------
 
 
+# getattr with defaults because not every subcommand defines every option.
 def _runtime_config(args) -> RuntimeConfig:
     return RuntimeConfig(
         gen_model=getattr(args, "model", DEFAULT_GENERATION_MODEL),
@@ -51,6 +52,8 @@ def _runtime_config(args) -> RuntimeConfig:
     )
 
 
+# Shown whenever the hashing embedder is in use, so its numbers are never mistaken
+# for real retrieval results.
 HASHING_WARNING = (
     "!! Using the 'hashing' fallback embedder: it captures lexical overlap only\n"
     "!! and has NO semantic ability (it cannot match 螢幕多亮 to 'brightness').\n"
@@ -64,6 +67,7 @@ def _warn_hashing() -> None:
     print(HASHING_WARNING, file=sys.stderr)
 
 
+# Printed to stderr so stdout carries only results.
 def _degraded(reason: str) -> None:
     print(
         f"note: dense retrieval unavailable ({reason})\n"
@@ -74,6 +78,7 @@ def _degraded(reason: str) -> None:
     )
 
 
+# CLI wrapper around pipeline.load_retriever that adds the stderr notices.
 def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
     r = load_retriever(mode, embed_model, on_degrade=_degraded)
     if r.embedder is not None and r.embedder.name == "hashing":
@@ -81,6 +86,7 @@ def _load_retriever(mode: str, embed_model: str | None = None) -> Retriever:
     return r
 
 
+# Retriever + generation model, built from the command-line options.
 def _load_pipeline(args) -> RagPipeline:
     cfg = _runtime_config(args)
     retriever = _load_retriever(args.mode)
@@ -103,6 +109,7 @@ def _load_pipeline(args) -> RagPipeline:
 
 
 def cmd_fetch(args) -> int:
+    # --status only reports the cache state; nothing is downloaded.
     if args.status:
         for key, info in fetching.cache_status().items():
             state = "cached" if info["cached"] else "MISSING"
@@ -117,9 +124,11 @@ def cmd_fetch(args) -> int:
 
 def cmd_build(args) -> int:
     t0 = time.perf_counter()
+    # --refresh re-downloads the pages first; otherwise the committed cache is used.
     chunks = build_corpus(offline=not args.refresh, force_fetch=args.refresh)
     parse_s = time.perf_counter() - t0
 
+    # Chunk count per kind, for the build summary.
     kinds: dict[str, int] = {}
     for c in chunks:
         kinds[c.kind] = kinds.get(c.kind, 0) + 1
@@ -129,6 +138,7 @@ def cmd_build(args) -> int:
     print(f"         -> {CORPUS_PATH}")
 
     t1 = time.perf_counter()
+    # Build loads only the embedding model; the generation model is not needed.
     embedder = build_embedder(args.embed_model, n_gpu_layers=args.embed_gpu_layers)
     if embedder.name == "hashing":
         _warn_hashing()
@@ -142,6 +152,7 @@ def cmd_build(args) -> int:
 
 
 def cmd_inspect(args) -> int:
+    # Debug view of the parser output: the 17 rows, or the derived facts with --facts.
     from . import fetch, normalize, parse
 
     zh = parse.parse_spec_table(fetch.load_cached("spec_zh"))
@@ -163,6 +174,7 @@ def cmd_inspect(args) -> int:
     return 0
 
 
+# Retrieval only: no generation model is loaded.
 def cmd_search(args) -> int:
     retriever = _load_retriever(args.mode)
     t0 = time.perf_counter()
@@ -172,6 +184,7 @@ def cmd_search(args) -> int:
     # degraded to BM25 when no embedder was available.
     print(f"{len(hits)} hits in {elapsed:.1f} ms  (mode={retriever.mode})\n")
     for h in hits:
+        # Per-arm ranks show which retriever contributed each hit (None = not in that list).
         ranks = f"dense={h.dense_rank} bm25={h.bm25_rank}"
         print(f"[{h.rank + 1}] {h.score:.4f}  {h.chunk.kind:9s} {ranks}")
         print(f"     {h.chunk.text}")
@@ -184,6 +197,10 @@ def cmd_ask(args) -> int:
     # Reasoning models stream a <think> block before the answer. With thinking
     # switched off it is empty, but printing "<think></think>" to a user is
     # noise, so suppress it as it streams rather than after the fact.
+    # A dict so the nested emit() can mutate it (a closure cannot rebind outer names
+    # without nonlocal).
+    #   buf   text held back until we know whether it is part of a think block
+    #   done  past the think block (or there is none): print tokens directly
     state = {"buf": "", "open": False, "done": False}
 
     def emit(piece: str) -> None:
@@ -193,6 +210,7 @@ def cmd_ask(args) -> int:
             return
         state["buf"] += piece
         buf = state["buf"]
+        # Think block closed: print only what follows it.
         if "</think>" in buf:
             state["done"] = True
             tail = buf.split("</think>", 1)[1].lstrip()
@@ -200,16 +218,20 @@ def cmd_ask(args) -> int:
             if tail:
                 sys.stdout.write(tail)
                 sys.stdout.flush()
+        # Output may be opening a think block: hold it until that is clear.
         elif (
             "<think>" in buf or "<think".startswith(buf.strip()[:6]) or buf.strip().startswith("<")
         ):
             state["open"] = True  # still inside (or possibly entering) the block
         else:
             state["done"] = True
+            # Output does not start with "<": no think block, flush what was held back.
             sys.stdout.write(buf)
             sys.stdout.flush()
             state["buf"] = ""
 
+    # When streaming, emit() prints tokens as they arrive; --no-stream prints the
+    # complete answer at the end instead.
     result = pipeline.answer(
         args.question,
         top_k=args.top_k,
@@ -219,17 +241,21 @@ def cmd_ask(args) -> int:
     )
     from .llm import strip_thinking
 
+    # The stream was filtered live; clean the full answer too for --no-stream and --json.
     result.answer = strip_thinking(result.answer)
     if args.no_stream:
         print(result.answer)
     else:
         print()
 
+    # --show-context prints the references the model was given.
     if args.show_context and result.hits:
         print("\n--- context ---")
         for i, h in enumerate(result.hits):
             print(f"[{i + 1}] {h.chunk.text}")
 
+    # Timing summary: retrieval time, TTFT (end-to-end and model-only), decode and
+    # end-to-end TPS, and token counts.
     s = result.stats
     print(
         f"\n--- retrieval {result.retrieval_s * 1000:.1f} ms | "
@@ -251,6 +277,7 @@ def cmd_ask(args) -> int:
 def cmd_eval_retrieval(args) -> int:
     questions = benchmarks.load_questions()
     payload = {"embed_model": None, "modes": {}}
+    # Same questions through each mode: Recall@1/3/5, MRR and latency side by side.
     for mode in args.modes:
         retriever = _load_retriever(mode)
         payload["embed_model"] = retriever.embedder.name if retriever.embedder else None
@@ -273,10 +300,13 @@ def cmd_eval_retrieval(args) -> int:
 def cmd_bench(args) -> int:
     pipeline = _load_pipeline(args)
     questions = benchmarks.load_questions()
+    # --limit N runs only the first N questions, for quick checks.
     if args.limit:
         questions = questions[: args.limit]
 
     payload = {
+        # The run configuration is saved alongside the results so every number can be
+        # traced back to its settings.
         "config": {
             "model": args.model,
             "backend": args.backend,
@@ -291,6 +321,8 @@ def cmd_bench(args) -> int:
         "runs": {},
     }
 
+    # One pass per top_k: deeper retrieval means a longer prompt, so TTFT and quality
+    # move together.
     for top_k in args.top_k_sweep:
         label = f"rag_top{top_k}"
         print(f"\n=== {label} ===")
@@ -304,6 +336,7 @@ def cmd_bench(args) -> int:
             f"{r['refusal_rate_on_negatives']:.2%} | grounding {r['number_grounding']:.2%}"
         )
 
+    # One repeat is enough: the control measures answer quality, not latency.
     if args.no_rag_control:
         print("\n=== no-RAG control ===")
         payload["runs"]["no_rag"] = benchmarks.evaluate_generation(
@@ -329,8 +362,10 @@ def build_parser() -> argparse.ArgumentParser:
         prog="aorus-rag",
         description="Hand-written RAG over the AORUS MASTER 16 AM6H spec sheet.",
     )
+    # One subparser per command; each binds its handler with set_defaults(func=...).
     sub = p.add_subparsers(dest="command", required=True)
 
+    # search needs only --mode; ask and bench also need the generation options.
     def add_model_args(sp, with_llm: bool = True) -> None:
         sp.add_argument("--mode", default="hybrid", choices=("dense", "bm25", "hybrid"))
         if with_llm:
@@ -391,6 +426,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("bench", help="TTFT / TPS / answer quality")
     sp.add_argument("--repeats", type=int, default=3)
+    # e.g. --top-k-sweep 1 3 5 8 runs one full pass per value.
     sp.add_argument("--top-k-sweep", type=int, nargs="+", default=[4])
     sp.add_argument("--limit", type=int, default=0)
     sp.add_argument("--no-rag-control", action="store_true")
@@ -406,6 +442,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        # Each subcommand binds its handler via set_defaults(func=...). Expected errors
+        # print one line instead of a traceback.
         return args.func(args)
     except (FileNotFoundError, KeyError, ValueError, RuntimeError) as exc:
         sys.stdout.flush()  # keep the error after whatever progress was printed
@@ -413,5 +451,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+# Also runnable as `python -m aorus_rag.cli`; the installed entry point is `aorus-rag`.
 if __name__ == "__main__":
     raise SystemExit(main())

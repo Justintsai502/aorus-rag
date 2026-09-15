@@ -7,12 +7,14 @@ import pytest
 
 from aorus_rag import fetch, normalize, parse
 
+# Every test here needs the cached HTML; skip rather than fail without it.
 pytestmark = pytest.mark.skipif(
     not (fetch.RAW_DIR / "spec_zh.html").exists(),
     reason="cached HTML missing; run `uv run aorus-rag fetch`",
 )
 
 
+# Parsed once per module and shared by all tests.
 @pytest.fixture(scope="module")
 def tables():
     zh = parse.parse_spec_table(fetch.load_cached("spec_zh"))
@@ -20,6 +22,7 @@ def tables():
     return zh, en
 
 
+# Both locales must have 17 rows: chunking pairs them row by row with zip().
 def test_row_count_and_alignment(tables):
     zh, en = tables
     parse.validate_spec_items(zh, "spec_zh")
@@ -46,6 +49,7 @@ def test_no_sibling_model_contamination(tables):
         assert marker not in blob
 
 
+# A caveat such as "May vary by scenario" must never be stored as a spec value.
 def test_footnotes_are_separated_from_values(tables):
     zh, _ = tables
     gpu = next(i for i in zh if i.key == "顯示晶片")
@@ -53,6 +57,7 @@ def test_footnotes_are_separated_from_values(tables):
     assert all("May vary by scenario" not in line for line in gpu.lines)
 
 
+# Spot-check values from three different rows of the cached page.
 def test_known_values_survive_parsing(tables):
     _, en = tables
     by_key = {i.key: i.value for i in en}
@@ -61,6 +66,8 @@ def test_known_values_survive_parsing(tables):
     assert "275HX" in by_key["CPU"]
 
 
+# Each assertion pins one extraction rule, including the side lookup for the
+# Thunderbolt ports.
 def test_atomic_facts(tables):
     zh, en = tables
     facts = {f.fact_id: f.value for f in normalize.extract_facts(zh, en)}
@@ -73,6 +80,7 @@ def test_atomic_facts(tables):
     assert "Right" in facts["io.side.thunderbolt4"]
 
 
+# Real feature copy (WINDFORCE cooling) is kept; the global nav label "主機板" is not.
 def test_feature_page_excludes_site_navigation():
     blocks = parse.parse_feature_page(fetch.load_cached("feature_zh"))
     text = " ".join(p for b in blocks for p in b.paragraphs)
@@ -90,6 +98,7 @@ def test_feature_page_excludes_site_navigation():
 # rather than relying on the happy path staying happy.
 # --------------------------------------------------------------------------
 
+# GPU numbers that belong only to the sibling SKUs.
 CONTAMINANT_GPUS = ("5080", "5070")
 
 
@@ -112,6 +121,7 @@ def test_comparison_widget_is_present_but_excluded():
     assert "5080" in html and "5070" in html  # the contaminants are really there
 
 
+# Four deliberately broken tables; validate_spec_items must reject each one.
 @pytest.mark.parametrize(
     "label,mutate",
     [
@@ -141,12 +151,14 @@ def test_sku_variants_are_paired_with_their_model_code():
     # Only the GPU row differs; the other sixteen are identical across SKUs.
     assert [zh[i].key for i in differing] == ["顯示晶片"]
 
+    # Each GPU value must land on the right model code.
     gpus = {v.code: v.values[differing[0]] for v in variants}
     assert "5090" in gpus["BZH"]
     assert "5080" in gpus["BYH"]
     assert "5070 Ti" in gpus["BXH"]
 
 
+# Expected: one overview chunk plus one chunk per SKU per differing row.
 def test_sku_chunks_bind_every_value_to_a_model_code():
     from aorus_rag import chunk as chunking
 

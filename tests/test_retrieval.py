@@ -13,11 +13,13 @@ from aorus_rag.retrieve import Retriever, embed_corpus
 
 
 def test_tokenizer_keeps_alphanumeric_identifiers():
+    # Identifiers like type-c and usb3.2 must not be split into type / c.
     tokens = tokenize("1 x Type-C with Thunderbolt™5, USB3.2 Gen2")
     assert "type-c" in tokens
     assert "usb3.2" in tokens
 
 
+# Bigrams give phrase-level matches; unigrams keep partial matches possible.
 def test_tokenizer_emits_cjk_unigrams_and_bigrams():
     tokens = tokenize("螢幕更新率")
     assert "螢幕" in tokens  # bigram
@@ -26,6 +28,9 @@ def test_tokenizer_emits_cjk_unigrams_and_bigrams():
 
 
 def test_vector_index_is_cosine():
+    # Row 0 [1,0] points the same way as the query: cosine 1, ranked first.
+    # Row 2 [1,1] scores 0.707; row 1 [0,2] is orthogonal and scores 0 (its length
+    # does not matter after normalisation).
     m = np.array([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]], dtype=np.float32)
     idx = VectorIndex(m)
     (top_i, top_s), *_ = idx.search(np.array([1.0, 0.0], dtype=np.float32), top_k=3)
@@ -33,6 +38,7 @@ def test_vector_index_is_cosine():
     assert top_s == pytest.approx(1.0, abs=1e-5)
 
 
+# Batched search must produce the same ranking as one query at a time.
 def test_vector_batch_matches_single():
     rng = np.random.default_rng(0)
     m = rng.normal(size=(20, 8)).astype(np.float32)
@@ -49,18 +55,23 @@ def test_vector_batch_matches_single():
 
 
 def test_bm25_ranks_exact_term_first():
+    # Only document 0 contains "99Wh".
     docs = [tokenize(t) for t in ["電池 Li-ion 99Wh", "變壓器 330W", "螢幕 240Hz"]]
     bm25 = BM25Index(docs)
     assert bm25.search("99Wh", top_k=1)[0][0] == 0
 
 
 def test_rrf_prefers_agreement_across_rankings():
+    # chunk 1: dense #2 + BM25 #1 -> 1/62 + 1/61
+    # chunk 5: dense #1 only      -> 1/61
+    # The chunk both lists agree on must win.
     dense = [(5, 0.9), (1, 0.8)]
     sparse = [(1, 12.0), (9, 3.0)]
     fused = rrf_fuse([dense, sparse])
     assert fused[0][0] == 1  # ranked by both
 
 
+# Three-chunk corpus used with HashingEmbedder, so no model download is needed.
 def _toy_corpus() -> list[Chunk]:
     return [
         Chunk(
@@ -90,6 +101,7 @@ def _toy_corpus() -> list[Chunk]:
     ]
 
 
+# A Chinese question and an English question must each reach the matching row.
 def test_retriever_finds_the_right_row_in_both_languages():
     chunks = _toy_corpus()
     emb = HashingEmbedder()
@@ -99,6 +111,7 @@ def test_retriever_finds_the_right_row_in_both_languages():
     assert r.search("What is the adapter power?", top_k=1)[0].chunk.chunk_id == "c2"
 
 
+# Five chunks share one doc_id; with max_per_doc=2 at most two may be returned.
 def test_retriever_caps_chunks_per_document():
     chunks = [
         Chunk(f"d{i}", "spec.display", "spec_line", f"顯示器 / Display: line {i}") for i in range(5)
@@ -108,6 +121,7 @@ def test_retriever_caps_chunks_per_document():
     assert len(r.search("顯示器", top_k=5)) <= 2
 
 
+# Mixed-language questions are decided by the CJK-to-letter ratio.
 @pytest.mark.parametrize(
     "text,expected",
     [
@@ -126,6 +140,7 @@ def test_prompt_trims_context_to_budget():
     emb = HashingEmbedder()
     r = Retriever(chunks, embed_corpus(chunks, emb), emb, mode="bm25")
     hits = r.search("電池", top_k=3)
+    # A 30-character budget forces hits to be dropped from the tail.
     built = build_prompt("電池多大", hits, max_context_chars=30)
     assert built.context_chars <= 30
     assert len(built.used_hits) < len(hits)
@@ -156,6 +171,8 @@ def test_rescue_keeps_a_single_retriever_top_hit():
     # Force the situation: gold is dense's top hit, unseen by BM25.
     dense = [(8, 0.9)] + [(i, 0.5) for i in range(4)]
     sparse = [(0, 9.0), (1, 8.0), (2, 7.0)]
+    # The fused selection is [0, 1, 2] and excludes gold (8); after the rescue 8 must
+    # be present and the result must still fit in top_k.
     selected = r._rescue_top_hits([(0, 0.03), (1, 0.02), (2, 0.01)], [dense, sparse], top_k=3)
     assert 8 in [i for i, _ in selected]
     assert len(selected) <= 3
